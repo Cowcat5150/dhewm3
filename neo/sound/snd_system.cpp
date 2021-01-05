@@ -70,7 +70,7 @@ idCVar idSoundSystemLocal::s_enviroSuitVolumeScale( "s_enviroSuitVolumeScale", "
 idCVar idSoundSystemLocal::s_skipHelltimeFX( "s_skipHelltimeFX", "0", CVAR_SOUND | CVAR_BOOL, "" );
 
 #if !defined(ID_DEDICATED)
-idCVar idSoundSystemLocal::s_useEAXReverb( "s_useEAXReverb", "1", CVAR_SOUND | CVAR_BOOL | CVAR_ARCHIVE, "use EFX reverb" );
+idCVar idSoundSystemLocal::s_useEAXReverb( "s_useEAXReverb", "0", CVAR_SOUND | CVAR_BOOL | CVAR_ARCHIVE, "use EFX reverb" ); // was 1 - fails on Morphos - Cowcat
 idCVar idSoundSystemLocal::s_decompressionLimit( "s_decompressionLimit", "6", CVAR_SOUND | CVAR_INTEGER | CVAR_ARCHIVE, "specifies maximum uncompressed sample length in seconds" );
 #else
 idCVar idSoundSystemLocal::s_useEAXReverb( "s_useEAXReverb", "0", CVAR_SOUND | CVAR_BOOL | CVAR_ROM, "EFX not available in this build" );
@@ -325,7 +325,9 @@ void idSoundSystemLocal::Init() {
 	graph = NULL;
 
 	// DG: added these for CheckDeviceAndRecoverIfNeeded()
+    #if !defined(__MORPHOS__)
 	alcResetDeviceSOFT = NULL;
+    #endif
 	resetRetryCount = 0;
 	lastCheckTime = 0;
 
@@ -405,8 +407,10 @@ void idSoundSystemLocal::Init() {
 		bool hasAlcExtDisconnect = alcIsExtensionPresent( openalDevice, "ALC_EXT_disconnect" ) != AL_FALSE;
 		bool hasAlcSoftHrtf = alcIsExtensionPresent( openalDevice, "ALC_SOFT_HRTF" ) != AL_FALSE;
 		if ( hasAlcExtDisconnect && hasAlcSoftHrtf ) {
+             #if !defined(__MORPHOS__)
 			common->Printf( "OpenAL: found extensions for resetting disconnected devices\n" );
 			alcResetDeviceSOFT = (LPALCRESETDEVICESOFT)alcGetProcAddress( openalDevice, "alcResetDeviceSOFT" );
+            #endif
 		}
 
 		// try to obtain EFX extensions
@@ -606,6 +610,8 @@ idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded
 */
 bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 {
+    #if !defined(__MORPHOS__) // Cowcat
+
 	static const int maxRetries = 20;
 
 	if ( alcResetDeviceSOFT == NULL ) {
@@ -649,6 +655,8 @@ bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 	}
 
 	return resetRetryCount == 0; // if it's 0, state on last check was ok
+
+    #endif
 }
 
 /*
