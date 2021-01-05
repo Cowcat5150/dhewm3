@@ -37,7 +37,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "framework/Session_local.h"
 
-#if defined(__AROS__)
+#if defined(__AROS__) || defined(__MORPHOS__)
 #define CDKEY_FILEPATH CDKEY_FILE
 #define XPKEY_FILEPATH XPKEY_FILE
 #else

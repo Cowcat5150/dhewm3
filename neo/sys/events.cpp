@@ -699,10 +699,13 @@ Sys_GenerateEvents
 ================
 */
 void Sys_GenerateEvents() {
+
+    #if !defined(__MORPHOS__)
 	char *s = Sys_ConsoleInput();
 
 	if (s)
 		PushConsoleEvent(s);
+    #endif
 
 	SDL_PumpEvents();
 }
