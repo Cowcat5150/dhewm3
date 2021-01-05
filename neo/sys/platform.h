@@ -40,6 +40,40 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
+#if defined(__MORPHOS__)
+
+#define _alloca					__builtin_alloca
+#define _alloca16( x )			((void *)((((uintptr_t)_alloca( (x)+15 )) + 15) & ~15))
+
+#ifdef GAME_DLL
+#define ID_GAME_API				__attribute__((visibility ("default")))
+#else
+#define ID_GAME_API
+#endif
+
+#define ALIGN16( x )				x __attribute__ ((aligned (16)))
+#define PACKED					__attribute__((packed))
+
+#define PATHSEPERATOR_STR			"/"
+#define PATHSEPERATOR_CHAR			'/'
+
+#define __cdecl
+#define ASSERT					assert
+
+#define ID_INLINE				inline
+#define ID_STATIC_TEMPLATE
+
+#undef Remove
+#undef Insert
+#undef Allocate
+#undef Read
+#undef Close
+#undef Write
+#undef Seek
+#undef Flush
+//#undef VPrintf
+
+#endif
 // Win32
 #if defined(__AROS__)
 

@@ -33,6 +33,10 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "idlib/Str.h"
 
+#if defined(__MORPHOS__)
+#undef toupper
+#endif
+
 #if !defined( ID_REDIRECT_NEWDELETE ) && !defined( MACOS_X )
 	#define USE_STRING_DATA_ALLOCATOR
 #endif
