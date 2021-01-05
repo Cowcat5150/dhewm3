@@ -1576,6 +1576,15 @@ void	idImage::ActuallyLoadImage( bool checkForPrecompressed, bool fromBackEnd ) 
 	// load the image from disk
 	//
 	if ( cubeFiles != CF_2D ) {
+
+        if( !glConfig.cubeMapAvailable ) // Cowcat
+        {
+                MakeDefault();
+                return;
+        }
+
+        else // Cowcat
+        {
 		byte	*pics[6];
 
 		// we don't check for pre-compressed cube images currently
@@ -1595,6 +1604,7 @@ void	idImage::ActuallyLoadImage( bool checkForPrecompressed, bool fromBackEnd ) 
 				R_StaticFree( pics[i] );
 			}
 		}
+        } // Cowcat
 	} else {
 		// see if we have a pre-generated image file that is
 		// already image processed and compressed

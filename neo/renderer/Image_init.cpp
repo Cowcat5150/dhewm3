@@ -1035,7 +1035,8 @@ void idImage::Reload( bool checkPrecompressed, bool force ) {
 		ID_TIME_T	current;
 
 		if ( cubeFiles != CF_2D ) {
-			R_LoadCubeImages( imgName, cubeFiles, NULL, NULL, &current );
+            if( glConfig.cubeMapAvailable ) // Cowcat
+			    R_LoadCubeImages( imgName, cubeFiles, NULL, NULL, &current );
 		} else {
 			// get the current values
 			R_LoadImageProgram( imgName, NULL, NULL, NULL, &current );
