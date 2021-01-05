@@ -1,0 +1,1118 @@
+B = buildmos
+BID = $(B)/idlib
+BJP = $(B)/jpeg
+BR  = $(B)/doom
+BB  = $(B)/base
+
+CXX = ppc-morphos-g++
+CC = ppc-morphos-gcc
+STRIP = ppc-morphos-strip
+
+AR = ppc-morphos-ar
+RANLIB = ppc-morphos-ranlib
+
+#PATH_SOURCE = /home/cowcat/Escritorio/Cross/dhewm3
+PATH_SOURCE = ./
+
+CXX_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive
+CC_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security
+
+CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I/gg/os-include/SDL2 -I/gg/os-include/AL
+CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I$(PATH_SOURCE)/neo/game -I/gg/os-include/SDL2
+CXX_DEFINES = -D__DOOM_DLL__
+CXX_DEFINES_BASE = -DGAME_DLL -Dbase_EXPORTS
+CXX_DEFINES_ALTIVEC = -D__VECTOR__
+
+DO_CC = $(CC) $(CC_FLAGS) $(C_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
+DO_CXX = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
+DO_CXX_ALTIVEC = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_DEFINES_ALTIVEC) $(CXX_INCLUDES) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $<
+DO_CXX_B = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES_BASE) $(CXX_INCLUDES_BASE) -o $@ -c $<
+
+OBJJPEG = \
+$(BJP)/jaricom.o \
+$(BJP)/jcapimin.o \
+$(BJP)/jcapistd.o \
+$(BJP)/jcarith.o \
+$(BJP)/jccoefct.o \
+$(BJP)/jccolor.o \
+$(BJP)/jcdctmgr.o \
+$(BJP)/jchuff.o \
+\
+$(BJP)/jcinit.o \
+$(BJP)/jcmainct.o \
+$(BJP)/jcmarker.o \
+$(BJP)/jcmaster.o \
+$(BJP)/jcomapi.o \
+$(BJP)/jcparam.o \
+$(BJP)/jcprepct.o \
+$(BJP)/jcsample.o \
+$(BJP)/jctrans.o \
+\
+$(BJP)/jdapimin.o \
+$(BJP)/jdapistd.o \
+$(BJP)/jdarith.o \
+$(BJP)/jdatadst.o \
+$(BJP)/jdatasrc.o \
+$(BJP)/jdcoefct.o \
+$(BJP)/jdcolor.o \
+$(BJP)/jddctmgr.o \
+\
+$(BJP)/jdhuff.o \
+$(BJP)/jdinput.o \
+$(BJP)/jdmainct.o \
+$(BJP)/jdmarker.o \
+$(BJP)/jdmaster.o \
+$(BJP)/jdmerge.o \
+$(BJP)/jdpostct.o \
+$(BJP)/jdsample.o \
+$(BJP)/jdtrans.o \
+$(BJP)/jerror.o \
+\
+$(BJP)/jfdctflt.o \
+$(BJP)/jfdctfst.o \
+$(BJP)/jfdctint.o \
+$(BJP)/jidctflt.o \
+$(BJP)/jidctfst.o \
+$(BJP)/jidctint.o \
+$(BJP)/jmemmgr.o \
+$(BJP)/jmemnobs.o \
+$(BJP)/jquant1.o \
+$(BJP)/jquant2.o \
+$(BJP)/jutils.o \
+
+OBJIDLIB = \
+$(BID)/Bounds.o \
+$(BID)/Frustum.o \
+$(BID)/Sphere.o \
+$(BID)/Box.o \
+$(BID)/DrawVert.o \
+$(BID)/Winding2D.o \
+$(BID)/Surface_SweptSpline.o \
+$(BID)/Winding.o \
+$(BID)/Surface.o \
+$(BID)/Surface_Patch.o \
+$(BID)/TraceModel.o \
+$(BID)/JointTransform.o \
+$(BID)/CRC32.o \
+$(BID)/MD4.o \
+$(BID)/MD5.o \
+$(BID)/Angles.o \
+$(BID)/Lcp.o \
+$(BID)/Math.o \
+$(BID)/Matrix.o \
+$(BID)/Ode.o \
+$(BID)/Plane.o \
+$(BID)/Pluecker.o \
+$(BID)/Polynomial.o \
+$(BID)/Quat.o \
+$(BID)/Rotation.o \
+$(BID)/Simd.o \
+$(BID)/Simd_Generic.o \
+$(BID)/Simd_AltiVec.o \
+$(BID)/Simd_MMX.o \
+$(BID)/Simd_3DNow.o \
+$(BID)/Simd_SSE.o \
+$(BID)/Simd_SSE2.o \
+$(BID)/Simd_SSE3.o \
+$(BID)/Vector.o \
+$(BID)/BitMsg.o \
+$(BID)/LangDict.o \
+$(BID)/Lexer.o \
+$(BID)/Lib.o \
+$(BID)/HashIndex.o \
+$(BID)/Dict.o \
+$(BID)/Str.o \
+$(BID)/Parser.o \
+$(BID)/MapFile.o \
+$(BID)/CmdArgs.o \
+$(BID)/Token.o \
+$(BID)/Base64.o \
+$(BID)/Timer.o \
+$(BID)/Heap.o
+
+OBJBASE = \
+$(BB)/AF.o \
+$(BB)/AFEntity.o \
+$(BB)/Actor.o \
+$(BB)/Camera.o \
+$(BB)/Entity.o \
+$(BB)/BrittleFracture.o \
+$(BB)/Fx.o \
+$(BB)/GameEdit.o \
+$(BB)/Game_local.o \
+$(BB)/Game_network.o \
+$(BB)/Item.o \
+$(BB)/IK.o \
+$(BB)/Light.o \
+$(BB)/Misc.o \
+$(BB)/Mover.o \
+$(BB)/Moveable.o \
+$(BB)/MultiplayerGame.o \
+$(BB)/Player.o \
+$(BB)/PlayerIcon.o \
+$(BB)/PlayerView.o \
+$(BB)/Projectile.o \
+$(BB)/Pvs.o \
+$(BB)/SecurityCamera.o \
+$(BB)/SmokeParticles.o \
+$(BB)/Sound.o \
+$(BB)/Target.o \
+$(BB)/Trigger.o \
+$(BB)/Weapon.o \
+$(BB)/WorldSpawn.o \
+$(BB)/AAS.o \
+$(BB)/AAS_debug.o \
+$(BB)/AAS_pathing.o \
+$(BB)/AAS_routing.o \
+$(BB)/AI.o \
+$(BB)/AI_events.o \
+$(BB)/AI_pathing.o \
+$(BB)/AI_Vagary.o \
+$(BB)/DebugGraph.o \
+$(BB)/Class.o \
+$(BB)/Event.o \
+$(BB)/SaveGame.o \
+$(BB)/SysCmds.o \
+$(BB)/SysCvar.o \
+$(BB)/TypeInfo.o \
+$(BB)/Anim.o \
+$(BB)/Anim_Blend.o \
+$(BB)/Anim_Import.o \
+$(BB)/Anim_Testmodel.o \
+$(BB)/Script_Compiler.o \
+$(BB)/Script_Interpreter.o \
+$(BB)/Script_Program.o \
+$(BB)/Script_Thread.o \
+$(BB)/Clip.o \
+$(BB)/Force.o \
+$(BB)/Force_Constant.o \
+$(BB)/Force_Drag.o \
+$(BB)/Force_Field.o \
+$(BB)/Force_Spring.o \
+$(BB)/Physics.o \
+$(BB)/Physics_AF.o \
+$(BB)/Physics_Actor.o \
+$(BB)/Physics_Base.o \
+$(BB)/Physics_Monster.o \
+$(BB)/Physics_Parametric.o \
+$(BB)/Physics_Player.o \
+$(BB)/Physics_RigidBody.o \
+$(BB)/Physics_Static.o \
+$(BB)/Physics_StaticMulti.o \
+$(BB)/Push.o \
+$(BB)/dllglue.o
+
+OBJDOOM = \
+$(BR)/Cinematic.o \
+$(BR)/GuiModel.o \
+$(BR)/Image_files.o \
+$(BR)/Image_init.o \
+$(BR)/Image_load.o \
+$(BR)/Image_process.o \
+$(BR)/Image_program.o \
+$(BR)/Interaction.o \
+$(BR)/Material.o \
+$(BR)/MegaTexture.o \
+$(BR)/Model.o \
+$(BR)/ModelDecal.o \
+$(BR)/ModelManager.o \
+$(BR)/ModelOverlay.o \
+$(BR)/Model_beam.o \
+$(BR)/Model_ase.o \
+$(BR)/Model_liquid.o \
+$(BR)/Model_lwo.o \
+$(BR)/Model_ma.o \
+$(BR)/Model_md3.o \
+$(BR)/Model_md5.o \
+$(BR)/Model_prt.o \
+$(BR)/Model_sprite.o \
+$(BR)/RenderEntity.o \
+$(BR)/RenderSystem.o \
+$(BR)/RenderSystem_init.o \
+$(BR)/RenderWorld.o \
+$(BR)/RenderWorld_demo.o \
+$(BR)/RenderWorld_load.o \
+$(BR)/RenderWorld_portals.o \
+$(BR)/VertexCache.o \
+$(BR)/draw_arb2.o \
+$(BR)/draw_arb.o \
+$(BR)/draw_common.o \
+$(BR)/tr_backend.o \
+$(BR)/tr_deform.o \
+$(BR)/tr_font.o \
+$(BR)/tr_guisurf.o \
+$(BR)/tr_light.o \
+$(BR)/tr_lightrun.o \
+$(BR)/tr_main.o \
+$(BR)/tr_orderIndexes.o \
+$(BR)/tr_polytope.o \
+$(BR)/tr_render.o \
+$(BR)/tr_rendertools.o \
+$(BR)/tr_shadowbounds.o \
+$(BR)/tr_stencilshadow.o \
+$(BR)/tr_subview.o \
+$(BR)/tr_trace.o \
+$(BR)/tr_trisurf.o \
+$(BR)/tr_turboshadow.o \
+\
+$(BR)/CVarSystem.o \
+$(BR)/CmdSystem.o \
+$(BR)/Common.o \
+$(BR)/Compressor.o \
+$(BR)/Console.o \
+$(BR)/DemoFile.o \
+$(BR)/DeclAF.o \
+$(BR)/DeclEntityDef.o \
+$(BR)/DeclFX.o \
+$(BR)/DeclManager.o \
+$(BR)/DeclParticle.o \
+$(BR)/DeclPDA.o \
+$(BR)/DeclSkin.o \
+$(BR)/DeclTable.o \
+$(BR)/EditField.o \
+$(BR)/EventLoop.o \
+$(BR)/File.o \
+$(BR)/FileSystem.o \
+$(BR)/KeyInput.o \
+$(BR)/UsercmdGen.o \
+$(BR)/Session_menu.o \
+$(BR)/Session.o \
+$(BR)/AsyncClient.o \
+$(BR)/AsyncNetwork.o \
+$(BR)/AsyncServer.o \
+$(BR)/MsgChannel.o \
+$(BR)/NetworkSystem.o \
+$(BR)/ServerScan.o \
+$(BR)/ioapi.o \
+$(BR)/unzip.o \
+\
+\
+$(BR)/CollisionModel_contacts.o \
+$(BR)/CollisionModel_contents.o \
+$(BR)/CollisionModel_debug.o \
+$(BR)/CollisionModel_files.o \
+$(BR)/CollisionModel_load.o \
+$(BR)/CollisionModel_rotate.o \
+$(BR)/CollisionModel_trace.o \
+$(BR)/CollisionModel_translate.o \
+\
+$(BR)/dmap.o \
+$(BR)/facebsp.o \
+$(BR)/gldraw.o \
+$(BR)/glfile.o \
+$(BR)/leakfile.o \
+$(BR)/map.o \
+$(BR)/optimize.o \
+$(BR)/output.o \
+$(BR)/portals.o \
+$(BR)/shadowopt3.o \
+$(BR)/tritjunction.o \
+$(BR)/tritools.o \
+$(BR)/ubrush.o \
+$(BR)/usurface.o \
+\
+$(BR)/AASBuild.o \
+$(BR)/AASBuild_file.o \
+$(BR)/AASBuild_gravity.o \
+$(BR)/AASBuild_ledge.o \
+$(BR)/AASBuild_merge.o \
+$(BR)/AASCluster.o \
+$(BR)/AASFile.o \
+$(BR)/AASFile_optimize.o \
+$(BR)/AASFile_sample.o \
+$(BR)/AASReach.o \
+$(BR)/AASFileManager.o \
+$(BR)/Brush.o \
+$(BR)/BrushBSP.o \
+\
+$(BR)/NSBitmapImageRep.o \
+$(BR)/codec.o \
+$(BR)/roq.o \
+$(BR)/roqParam.o \
+\
+$(BR)/renderbump.o \
+\
+$(BR)/snd_cache.o \
+$(BR)/snd_decoder.o \
+$(BR)/snd_efxfile.o \
+$(BR)/snd_emitter.o \
+$(BR)/snd_shader.o \
+$(BR)/snd_system.o \
+$(BR)/snd_wavefile.o \
+$(BR)/snd_world.o \
+\
+$(BR)/BindWindow.o \
+$(BR)/ChoiceWindow.o \
+$(BR)/DeviceContext.o \
+$(BR)/EditWindow.o \
+$(BR)/FieldWindow.o \
+$(BR)/GameBearShootWindow.o \
+$(BR)/GameBustOutWindow.o \
+$(BR)/GameSSDWindow.o \
+$(BR)/GuiScript.o \
+$(BR)/ListGUI.o \
+$(BR)/ListWindow.o \
+$(BR)/MarkerWindow.o \
+$(BR)/RegExp.o \
+$(BR)/RenderWindow.o \
+$(BR)/SimpleWindow.o \
+$(BR)/SliderWindow.o \
+$(BR)/UserInterface.o \
+$(BR)/Window.o \
+$(BR)/Winvar.o \
+\
+$(BR)/cpu.o \
+$(BR)/threads.o \
+$(BR)/events.o \
+$(BR)/sys_local.o \
+$(BR)/posix_net.o \
+$(BR)/posix_main.o \
+$(BR)/main.o \
+$(BR)/glimp.o \
+$(BR)/edit_stub.o
+
+IDLIB = $(B)/idlib.a
+JPEG = $(B)/jpeg.a
+BASE = $(B)/base.so
+DOOM = $(B)/doom3
+
+LIBS = $(IDLIB) $(JPEG) -noixemul -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
+
+all: $(IDLIB) $(BASE) $(JPEG) $(DOOM)  
+
+$(IDLIB): $(OBJIDLIB)
+	$(AR) r $(IDLIB) $(OBJIDLIB)
+	$(RANLIB) $@
+
+$(JPEG): $(OBJJPEG)
+	$(AR) r $(JPEG) $(OBJJPEG)
+	$(RANLIB) $@
+
+$(BASE): $(OBJBASE)
+	$(CXX) -o $@ $(OBJBASE) $(IDLIB) -noixemul -ldll
+	$(STRIP) $@
+
+$(DOOM): $(OBJDOOM)
+	$(CXX) -o $@ $(OBJDOOM) $(LIBS)
+	$(STRIP) $@
+
+#RENDERER
+
+$(BR)/Cinematic.o: neo/renderer/Cinematic.cpp
+	$(DO_CXX)
+$(BR)/GuiModel.o: neo/renderer/GuiModel.cpp
+	$(DO_CXX)
+$(BR)/Image_files.o: neo/renderer/Image_files.cpp
+	$(DO_CXX)
+$(BR)/Image_init.o: neo/renderer/Image_init.cpp
+	$(DO_CXX)
+$(BR)/Image_load.o: neo/renderer/Image_load.cpp
+	$(DO_CXX)
+$(BR)/Image_process.o: neo/renderer/Image_process.cpp
+	$(DO_CXX)
+$(BR)/Image_program.o: neo/renderer/Image_program.cpp
+	$(DO_CXX)
+$(BR)/Interaction.o: neo/renderer/Interaction.cpp
+	$(DO_CXX)
+$(BR)/Material.o: neo/renderer/Material.cpp
+	$(DO_CXX)
+$(BR)/MegaTexture.o: neo/renderer/MegaTexture.cpp
+	$(DO_CXX)
+$(BR)/Model.o: neo/renderer/Model.cpp
+	$(DO_CXX)
+$(BR)/ModelDecal.o: neo/renderer/ModelDecal.cpp
+	$(DO_CXX)
+$(BR)/ModelManager.o: neo/renderer/ModelManager.cpp
+	$(DO_CXX)
+$(BR)/ModelOverlay.o: neo/renderer/ModelOverlay.cpp
+	$(DO_CXX)
+$(BR)/Model_beam.o: neo/renderer/Model_beam.cpp
+	$(DO_CXX)
+$(BR)/Model_ase.o: neo/renderer/Model_ase.cpp
+	$(DO_CXX)
+$(BR)/Model_liquid.o: neo/renderer/Model_liquid.cpp
+	$(DO_CXX)
+$(BR)/Model_lwo.o: neo/renderer/Model_lwo.cpp
+	$(DO_CXX)
+$(BR)/Model_ma.o: neo/renderer/Model_ma.cpp
+	$(DO_CXX)
+$(BR)/Model_md3.o: neo/renderer/Model_md3.cpp
+	$(DO_CXX)
+$(BR)/Model_md5.o: neo/renderer/Model_md5.cpp
+	$(DO_CXX)
+$(BR)/Model_prt.o: neo/renderer/Model_prt.cpp
+	$(DO_CXX)
+$(BR)/Model_sprite.o: neo/renderer/Model_sprite.cpp
+	$(DO_CXX)
+$(BR)/RenderEntity.o: neo/renderer/RenderEntity.cpp
+	$(DO_CXX)
+$(BR)/RenderSystem.o: neo/renderer/RenderSystem.cpp
+	$(DO_CXX)
+$(BR)/RenderSystem_init.o: neo/renderer/RenderSystem_init.cpp
+	$(DO_CXX)
+$(BR)/RenderWorld.o: neo/renderer/RenderWorld.cpp
+	$(DO_CXX)
+$(BR)/RenderWorld_demo.o: neo/renderer/RenderWorld_demo.cpp
+	$(DO_CXX)
+$(BR)/RenderWorld_load.o: neo/renderer/RenderWorld_load.cpp
+	$(DO_CXX)
+$(BR)/RenderWorld_portals.o: neo/renderer/RenderWorld_portals.cpp
+	$(DO_CXX)
+$(BR)/VertexCache.o: neo/renderer/VertexCache.cpp
+	$(DO_CXX)
+$(BR)/draw_arb.o: neo/renderer/draw_arb.cpp
+	$(DO_CXX)
+$(BR)/draw_arb2.o: neo/renderer/draw_arb2.cpp
+	$(DO_CXX)
+$(BR)/draw_common.o: neo/renderer/draw_common.cpp
+	$(DO_CXX)
+$(BR)/tr_backend.o: neo/renderer/tr_backend.cpp
+	$(DO_CXX)
+$(BR)/tr_deform.o: neo/renderer/tr_deform.cpp
+	$(DO_CXX)
+$(BR)/tr_font.o: neo/renderer/tr_font.cpp
+	$(DO_CXX)
+$(BR)/tr_guisurf.o: neo/renderer/tr_guisurf.cpp
+	$(DO_CXX)
+$(BR)/tr_light.o: neo/renderer/tr_light.cpp
+	$(DO_CXX)
+$(BR)/tr_lightrun.o: neo/renderer/tr_lightrun.cpp
+	$(DO_CXX)
+$(BR)/tr_main.o: neo/renderer/tr_main.cpp
+	$(DO_CXX)
+$(BR)/tr_orderIndexes.o: neo/renderer/tr_orderIndexes.cpp
+	$(DO_CXX)
+$(BR)/tr_polytope.o: neo/renderer/tr_polytope.cpp
+	$(DO_CXX)
+$(BR)/tr_render.o: neo/renderer/tr_render.cpp
+	$(DO_CXX)
+$(BR)/tr_rendertools.o: neo/renderer/tr_rendertools.cpp
+	$(DO_CXX)
+$(BR)/tr_shadowbounds.o: neo/renderer/tr_shadowbounds.cpp
+	$(DO_CXX)
+$(BR)/tr_stencilshadow.o: neo/renderer/tr_stencilshadow.cpp
+	$(DO_CXX)
+$(BR)/tr_subview.o: neo/renderer/tr_subview.cpp
+	$(DO_CXX)
+$(BR)/tr_trace.o: neo/renderer/tr_trace.cpp
+	$(DO_CXX)
+$(BR)/tr_trisurf.o: neo/renderer/tr_trisurf.cpp
+	$(DO_CXX)
+$(BR)/tr_turboshadow.o: neo/renderer/tr_turboshadow.cpp
+	$(DO_CXX)
+
+#FRAMEWORK
+
+$(BR)/CVarSystem.o: neo/framework/CVarSystem.cpp
+	$(DO_CXX)
+$(BR)/CmdSystem.o: neo/framework/CmdSystem.cpp
+	$(DO_CXX)
+$(BR)/Common.o: neo/framework/Common.cpp
+	$(DO_CXX)
+$(BR)/Compressor.o: neo/framework/Compressor.cpp
+	$(DO_CXX)
+$(BR)/Console.o: neo/framework/Console.cpp
+	$(DO_CXX)
+$(BR)/DemoFile.o: neo/framework/DemoFile.cpp
+	$(DO_CXX)
+$(BR)/DeclAF.o: neo/framework/DeclAF.cpp
+	$(DO_CXX)
+$(BR)/DeclEntityDef.o: neo/framework/DeclEntityDef.cpp
+	$(DO_CXX)
+$(BR)/DeclFX.o: neo/framework/DeclFX.cpp
+	$(DO_CXX)
+$(BR)/DeclManager.o: neo/framework/DeclManager.cpp
+	$(DO_CXX)
+$(BR)/DeclParticle.o: neo/framework/DeclParticle.cpp
+	$(DO_CXX)
+$(BR)/DeclPDA.o: neo/framework/DeclPDA.cpp
+	$(DO_CXX)
+$(BR)/DeclSkin.o: neo/framework/DeclSkin.cpp
+	$(DO_CXX)
+$(BR)/DeclTable.o: neo/framework/DeclTable.cpp
+	$(DO_CXX)
+$(BR)/EditField.o: neo/framework/EditField.cpp
+	$(DO_CXX)
+$(BR)/EventLoop.o:  neo/framework/EventLoop.cpp
+	$(DO_CXX)
+$(BR)/File.o: neo/framework/File.cpp
+	$(DO_CXX)
+$(BR)/FileSystem.o: neo/framework/FileSystem.cpp
+	$(DO_CXX)
+$(BR)/KeyInput.o: neo/framework/KeyInput.cpp
+	$(DO_CXX)
+$(BR)/UsercmdGen.o: neo/framework/UsercmdGen.cpp
+	$(DO_CXX)
+$(BR)/Session_menu.o: neo/framework/Session_menu.cpp
+	$(DO_CXX)
+$(BR)/Session.o: neo/framework/Session.cpp
+	$(DO_CXX)
+$(BR)/AsyncClient.o: neo/framework/async/AsyncClient.cpp
+	$(DO_CXX)
+$(BR)/AsyncNetwork.o: neo/framework/async/AsyncNetwork.cpp
+	$(DO_CXX)
+$(BR)/AsyncServer.o: neo/framework/async/AsyncServer.cpp
+	$(DO_CXX)
+$(BR)/MsgChannel.o: neo/framework/async/MsgChannel.cpp
+	$(DO_CXX)
+$(BR)/NetworkSystem.o: neo/framework/async/NetworkSystem.cpp
+	$(DO_CXX)
+$(BR)/ServerScan.o: neo/framework/async/ServerScan.cpp
+	$(DO_CXX)
+$(BR)/ioapi.o: neo/framework/minizip/ioapi.c
+	$(DO_CC)
+$(BR)/unzip.o: neo/framework/minizip/unzip.cpp
+	$(DO_CXX)
+
+$(BR)/adler32.o:  neo/framework/minizip/adler32.c
+	$(DO_CC)
+
+$(BR)/crc32.o:  neo/framework/minizip/crc32.c
+	$(DO_CC)
+$(BR)/inffast.o:  neo/framework/minizip/inffast.c
+	$(DO_CC)
+$(BR)/inflate.o:  neo/framework/minizip/inflate.c
+	$(DO_CC)
+$(BR)/inftrees.o:  neo/framework/minizip/inftrees.c
+	$(DO_CC)
+$(BR)/zutil.o:  neo/framework/minizip/zutil.c
+	$(DO_CC)
+
+#COLLISION
+
+$(BR)/CollisionModel_contacts.o: neo/cm/CollisionModel_contacts.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_contents.o: neo/cm/CollisionModel_contents.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_debug.o: neo/cm/CollisionModel_debug.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_files.o: neo/cm/CollisionModel_files.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_load.o: neo/cm/CollisionModel_load.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_rotate.o: neo/cm/CollisionModel_rotate.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_trace.o: neo/cm/CollisionModel_trace.cpp
+	$(DO_CXX)
+$(BR)/CollisionModel_translate.o: neo/cm/CollisionModel_translate.cpp
+	$(DO_CXX)
+
+#DMAP
+
+$(BR)/dmap.o: neo/tools/compilers/dmap/dmap.cpp
+	$(DO_CXX)
+$(BR)/facebsp.o: neo/tools/compilers/dmap/facebsp.cpp
+	$(DO_CXX)
+$(BR)/gldraw.o: neo/tools/compilers/dmap/gldraw.cpp
+	$(DO_CXX)
+$(BR)/glfile.o: neo/tools/compilers/dmap/glfile.cpp
+	$(DO_CXX)
+$(BR)/leakfile.o: neo/tools/compilers/dmap/leakfile.cpp
+	$(DO_CXX)
+$(BR)/map.o: neo/tools/compilers/dmap/map.cpp
+	$(DO_CXX)
+$(BR)/optimize.o: neo/tools/compilers/dmap/optimize.cpp
+	$(DO_CXX)
+$(BR)/output.o: neo/tools/compilers/dmap/output.cpp
+	$(DO_CXX)
+$(BR)/portals.o: neo/tools/compilers/dmap/portals.cpp
+	$(DO_CXX)
+$(BR)/shadowopt3.o: neo/tools/compilers/dmap/shadowopt3.cpp
+	$(DO_CXX)
+$(BR)/tritjunction.o: neo/tools/compilers/dmap/tritjunction.cpp
+	$(DO_CXX)
+$(BR)/tritools.o: neo/tools/compilers/dmap/tritools.cpp
+	$(DO_CXX)
+$(BR)/ubrush.o: neo/tools/compilers/dmap/ubrush.cpp
+	$(DO_CXX)
+$(BR)/usurface.o: neo/tools/compilers/dmap/usurface.cpp
+	$(DO_CXX)
+
+#AAS
+$(BR)/AASBuild.o: neo/tools/compilers/aas/AASBuild.cpp
+	$(DO_CXX)
+$(BR)/AASBuild_file.o: neo/tools/compilers/aas/AASBuild_file.cpp
+	$(DO_CXX)
+$(BR)/AASBuild_gravity.o: neo/tools/compilers/aas/AASBuild_gravity.cpp
+	$(DO_CXX)
+$(BR)/AASBuild_ledge.o: neo/tools/compilers/aas/AASBuild_ledge.cpp
+	$(DO_CXX)
+$(BR)/AASBuild_merge.o: neo/tools/compilers/aas/AASBuild_merge.cpp
+	$(DO_CXX)
+$(BR)/AASCluster.o: neo/tools/compilers/aas/AASCluster.cpp
+	$(DO_CXX)
+$(BR)/AASFile.o: neo/tools/compilers/aas/AASFile.cpp
+	$(DO_CXX)
+$(BR)/AASFile_optimize.o: neo/tools/compilers/aas/AASFile_optimize.cpp
+	$(DO_CXX)
+$(BR)/AASFile_sample.o: neo/tools/compilers/aas/AASFile_sample.cpp
+	$(DO_CXX)
+$(BR)/AASReach.o: neo/tools/compilers/aas/AASReach.cpp
+	$(DO_CXX)
+$(BR)/AASFileManager.o: neo/tools/compilers/aas/AASFileManager.cpp
+	$(DO_CXX)
+$(BR)/Brush.o: neo/tools/compilers/aas/Brush.cpp
+	$(DO_CXX)
+$(BR)/BrushBSP.o: neo/tools/compilers/aas/BrushBSP.cpp
+	$(DO_CXX)
+
+#ROQ
+
+$(BR)/NSBitmapImageRep.o: neo/tools/compilers/roqvq/NSBitmapImageRep.cpp
+	$(DO_CXX)
+$(BR)/codec.o: neo/tools/compilers/roqvq/codec.cpp
+	$(DO_CXX)
+$(BR)/roq.o: neo/tools/compilers/roqvq/roq.cpp
+	$(DO_CXX)
+$(BR)/roqParam.o: neo/tools/compilers/roqvq/roqParam.cpp
+	$(DO_CXX)
+
+
+$(BR)/renderbump.o: neo/tools/compilers/renderbump/renderbump.cpp
+	$(DO_CXX)
+
+#SOUND
+
+$(BR)/snd_cache.o: neo/sound/snd_cache.cpp
+	$(DO_CXX)
+$(BR)/snd_decoder.o: neo/sound/snd_decoder.cpp
+	$(DO_CXX)
+$(BR)/snd_efxfile.o: neo/sound/snd_efxfile.cpp
+	$(DO_CXX)
+$(BR)/snd_emitter.o: neo/sound/snd_emitter.cpp
+	$(DO_CXX)
+$(BR)/snd_shader.o: neo/sound/snd_shader.cpp
+	$(DO_CXX)
+$(BR)/snd_system.o: neo/sound/snd_system.cpp
+	$(DO_CXX)
+$(BR)/snd_wavefile.o: neo/sound/snd_wavefile.cpp
+	$(DO_CXX)
+$(BR)/snd_world.o: neo/sound/snd_world.cpp
+	$(DO_CXX)
+
+#UI
+
+$(BR)/BindWindow.o: neo/ui/BindWindow.cpp
+	$(DO_CXX)
+$(BR)/ChoiceWindow.o: neo/ui/ChoiceWindow.cpp
+	$(DO_CXX)
+$(BR)/DeviceContext.o: neo/ui/DeviceContext.cpp
+	$(DO_CXX)
+$(BR)/EditWindow.o: neo/ui/EditWindow.cpp
+	$(DO_CXX)
+$(BR)/FieldWindow.o: neo/ui/FieldWindow.cpp
+	$(DO_CXX)
+$(BR)/GameBearShootWindow.o: neo/ui/GameBearShootWindow.cpp
+	$(DO_CXX)
+$(BR)/GameBustOutWindow.o: neo/ui/GameBustOutWindow.cpp
+	$(DO_CXX)
+$(BR)/GameSSDWindow.o: neo/ui/GameSSDWindow.cpp
+	$(DO_CXX)
+$(BR)/GuiScript.o: neo/ui/GuiScript.cpp
+	$(DO_CXX)
+$(BR)/ListGUI.o: neo/ui/ListGUI.cpp
+	$(DO_CXX)
+$(BR)/ListWindow.o: neo/ui/ListWindow.cpp
+	$(DO_CXX)
+$(BR)/MarkerWindow.o: neo/ui/MarkerWindow.cpp
+	$(DO_CXX)
+$(BR)/RegExp.o: neo/ui/RegExp.cpp
+	$(DO_CXX)
+$(BR)/RenderWindow.o: neo/ui/RenderWindow.cpp
+	$(DO_CXX)
+$(BR)/SimpleWindow.o: neo/ui/SimpleWindow.cpp
+	$(DO_CXX)
+$(BR)/SliderWindow.o: neo/ui/SliderWindow.cpp
+	$(DO_CXX)
+$(BR)/UserInterface.o: neo/ui/UserInterface.cpp
+	$(DO_CXX)
+$(BR)/Window.o: neo/ui/Window.cpp
+	$(DO_CXX)
+$(BR)/Winvar.o: neo/ui/Winvar.cpp
+	$(DO_CXX)
+
+#SYS
+
+$(BR)/cpu.o: neo/sys/cpu.cpp
+	$(DO_CXX)
+$(BR)/threads.o: neo/sys/threads.cpp
+	$(DO_CXX)
+$(BR)/events.o: neo/sys/events.cpp
+	$(DO_CXX)
+$(BR)/sys_local.o: neo/sys/sys_local.cpp
+	$(DO_CXX)
+$(BR)/posix_net.o: neo/sys/morphos/posix_net.cpp
+	$(DO_CXX)
+$(BR)/posix_main.o: neo/sys/morphos/posix_main.cpp
+	$(DO_CXX)
+$(BR)/main.o: neo/sys/morphos/main.cpp
+	$(DO_CXX)
+$(BR)/glimp.o: neo/sys/morphos/glimp.cpp
+	$(DO_CXX)
+$(BR)/edit_stub.o: neo/tools/edit_stub.cpp
+	$(DO_CXX)
+
+
+
+#IDLIB
+
+$(BID)/Bounds.o: neo/idlib/bv/Bounds.cpp
+	$(DO_CXX)
+$(BID)/Frustum.o: neo/idlib/bv/Frustum.cpp
+	$(DO_CXX)
+$(BID)/Sphere.o: neo/idlib/bv/Sphere.cpp
+	$(DO_CXX)
+$(BID)/Box.o: neo/idlib/bv/Box.cpp
+	$(DO_CXX)
+$(BID)/DrawVert.o: neo/idlib/geometry/DrawVert.cpp
+	$(DO_CXX)
+$(BID)/Winding2D.o: neo/idlib/geometry/Winding2D.cpp
+	$(DO_CXX)
+$(BID)/Surface_SweptSpline.o: neo/idlib/geometry/Surface_SweptSpline.cpp
+	$(DO_CXX)
+$(BID)/Winding.o: neo/idlib/geometry/Winding.cpp
+	$(DO_CXX)
+$(BID)/Surface.o: neo/idlib/geometry/Surface.cpp
+	$(DO_CXX)
+$(BID)/Surface_Patch.o: neo/idlib/geometry/Surface_Patch.cpp
+	$(DO_CXX)
+$(BID)/TraceModel.o: neo/idlib/geometry/TraceModel.cpp
+	$(DO_CXX)
+$(BID)/JointTransform.o: neo/idlib/geometry/JointTransform.cpp
+	$(DO_CXX)
+$(BID)/CRC32.o: neo/idlib/hashing/CRC32.cpp
+	$(DO_CXX)
+$(BID)/MD4.o: neo/idlib/hashing/MD4.cpp
+	$(DO_CXX)
+$(BID)/MD5.o: neo/idlib/hashing/MD5.cpp
+	$(DO_CXX)
+$(BID)/Angles.o: neo/idlib/math/Angles.cpp
+	$(DO_CXX)
+$(BID)/Lcp.o: neo/idlib/math/Lcp.cpp
+	$(DO_CXX)
+$(BID)/Math.o: neo/idlib/math/Math.cpp
+	$(DO_CXX)
+$(BID)/Matrix.o: neo/idlib/math/Matrix.cpp
+	$(DO_CXX)
+$(BID)/Ode.o: neo/idlib/math/Ode.cpp
+	$(DO_CXX)
+$(BID)/Plane.o: neo/idlib/math/Plane.cpp
+	$(DO_CXX)
+$(BID)/Pluecker.o: neo/idlib/math/Pluecker.cpp
+	$(DO_CXX)
+$(BID)/Polynomial.o: neo/idlib/math/Polynomial.cpp
+	$(DO_CXX)
+$(BID)/Quat.o: neo/idlib/math/Quat.cpp
+	$(DO_CXX)
+$(BID)/Rotation.o: neo/idlib/math/Rotation.cpp
+	$(DO_CXX)
+$(BID)/Simd.o: neo/idlib/math/Simd.cpp
+	$(DO_CXX)
+$(BID)/Simd_Generic.o: neo/idlib/math/Simd_Generic.cpp
+	$(DO_CXX)
+$(BID)/Simd_AltiVec.o: neo/idlib/math/Simd_AltiVec.cpp
+	$(DO_CXX)
+$(BID)/Simd_MMX.o: neo/idlib/math/Simd_MMX.cpp
+	$(DO_CXX)
+$(BID)/Simd_3DNow.o: neo/idlib/math/Simd_3DNow.cpp
+	$(DO_CXX)
+$(BID)/Simd_SSE.o: neo/idlib/math/Simd_SSE.cpp
+	$(DO_CXX)
+$(BID)/Simd_SSE2.o: neo/idlib/math/Simd_SSE2.cpp
+	$(DO_CXX)
+$(BID)/Simd_SSE3.o: neo/idlib/math/Simd_SSE3.cpp
+	$(DO_CXX)
+$(BID)/Vector.o: neo/idlib/math/Vector.cpp
+	$(DO_CXX)
+$(BID)/BitMsg.o: neo/idlib/BitMsg.cpp
+	$(DO_CXX)
+$(BID)/LangDict.o: neo/idlib/LangDict.cpp
+	$(DO_CXX)
+$(BID)/Lexer.o: neo/idlib/Lexer.cpp
+	$(DO_CXX)
+$(BID)/Lib.o: neo/idlib/Lib.cpp
+	$(DO_CXX)
+$(BID)/HashIndex.o: neo/idlib/containers/HashIndex.cpp
+	$(DO_CXX)
+$(BID)/Dict.o: neo/idlib/Dict.cpp
+	$(DO_CXX)
+$(BID)/Str.o: neo/idlib/Str.cpp
+	$(DO_CXX)
+$(BID)/Parser.o: neo/idlib/Parser.cpp
+	$(DO_CXX)
+$(BID)/MapFile.o: neo/idlib/MapFile.cpp
+	$(DO_CXX)
+$(BID)/CmdArgs.o: neo/idlib/CmdArgs.cpp
+	$(DO_CXX)
+$(BID)/Token.o: neo/idlib/Token.cpp
+	$(DO_CXX)
+$(BID)/Base64.o: neo/idlib/Base64.cpp
+	$(DO_CXX)
+$(BID)/Timer.o:neo/idlib/Timer.cpp
+	$(DO_CXX)
+$(BID)/Heap.o: neo/idlib/Heap.cpp
+	$(DO_CXX)
+
+#BASE
+
+$(BB)/AF.o: neo/game/AF.cpp
+	$(DO_CXX_B)
+$(BB)/AFEntity.o: neo/game/AFEntity.cpp
+	$(DO_CXX_B)
+$(BB)/Actor.o: neo/game/Actor.cpp
+	$(DO_CXX_B)
+$(BB)/Camera.o: neo/game/Camera.cpp
+	$(DO_CXX_B)
+$(BB)/Entity.o: neo/game/Entity.cpp
+	$(DO_CXX_B)
+$(BB)/BrittleFracture.o: neo/game/BrittleFracture.cpp
+	$(DO_CXX_B)
+$(BB)/Fx.o: neo/game/Fx.cpp
+	$(DO_CXX_B)
+$(BB)/GameEdit.o: neo/game/GameEdit.cpp
+	$(DO_CXX_B)
+$(BB)/Game_local.o: neo/game/Game_local.cpp
+	$(DO_CXX_B)
+$(BB)/Game_network.o: neo/game/Game_network.cpp
+	$(DO_CXX_B)
+$(BB)/Item.o: neo/game/Item.cpp
+	$(DO_CXX_B)
+$(BB)/IK.o: neo/game/IK.cpp
+	$(DO_CXX_B)
+$(BB)/Light.o: neo/game/Light.cpp
+	$(DO_CXX_B)
+$(BB)/Misc.o: neo/game/Misc.cpp
+	$(DO_CXX_B)
+$(BB)/Mover.o: neo/game/Mover.cpp
+	$(DO_CXX_B)
+$(BB)/Moveable.o: neo/game/Moveable.cpp
+	$(DO_CXX_B)
+$(BB)/MultiplayerGame.o: neo/game/MultiplayerGame.cpp
+	$(DO_CXX_B)
+$(BB)/Player.o: neo/game/Player.cpp
+	$(DO_CXX_B)
+$(BB)/PlayerIcon.o: neo/game/PlayerIcon.cpp
+	$(DO_CXX_B)
+$(BB)/PlayerView.o: neo/game/PlayerView.cpp
+	$(DO_CXX_B)
+$(BB)/Projectile.o: neo/game/Projectile.cpp
+	$(DO_CXX_B)
+$(BB)/Pvs.o: neo/game/Pvs.cpp
+	$(DO_CXX_B)
+$(BB)/SecurityCamera.o: neo/game/SecurityCamera.cpp
+	$(DO_CXX_B)
+$(BB)/SmokeParticles.o: neo/game/SmokeParticles.cpp
+	$(DO_CXX_B)
+$(BB)/Sound.o: neo/game/Sound.cpp
+	$(DO_CXX_B)
+$(BB)/Target.o: neo/game/Target.cpp
+	$(DO_CXX_B)
+$(BB)/Trigger.o: neo/game/Trigger.cpp
+	$(DO_CXX_B)
+$(BB)/Weapon.o: neo/game/Weapon.cpp
+	$(DO_CXX_B)
+$(BB)/WorldSpawn.o: neo/game/WorldSpawn.cpp
+	$(DO_CXX_B)
+$(BB)/AAS.o: neo/game/ai/AAS.cpp
+	$(DO_CXX_B)
+$(BB)/AAS_debug.o: neo/game/ai/AAS_debug.cpp
+	$(DO_CXX_B)
+$(BB)/AAS_pathing.o: neo/game/ai/AAS_pathing.cpp
+	$(DO_CXX_B)
+$(BB)/AAS_routing.o: neo/game/ai/AAS_routing.cpp
+	$(DO_CXX_B)
+$(BB)/AI.o: neo/game/ai/AI.cpp
+	$(DO_CXX_B)
+$(BB)/AI_events.o: neo/game/ai/AI_events.cpp
+	$(DO_CXX_B)
+$(BB)/AI_pathing.o: neo/game/ai/AI_pathing.cpp
+	$(DO_CXX_B)
+$(BB)/AI_Vagary.o: neo/game/ai/AI_Vagary.cpp
+	$(DO_CXX_B)
+$(BB)/DebugGraph.o: neo/game/gamesys/DebugGraph.cpp
+	$(DO_CXX_B)
+$(BB)/Class.o: neo/game/gamesys/Class.cpp
+	$(DO_CXX_B)
+$(BB)/Event.o: neo/game/gamesys/Event.cpp
+	$(DO_CXX_B)
+$(BB)/SaveGame.o: neo/game/gamesys/SaveGame.cpp
+	$(DO_CXX_B)
+$(BB)/SysCmds.o: neo/game/gamesys/SysCmds.cpp
+	$(DO_CXX_B)
+$(BB)/SysCvar.o: neo/game/gamesys/SysCvar.cpp
+	$(DO_CXX_B)
+$(BB)/TypeInfo.o: neo/game/gamesys/TypeInfo.cpp
+	$(DO_CXX_B)
+$(BB)/Anim.o: neo/game/anim/Anim.cpp
+	$(DO_CXX_B)
+$(BB)/Anim_Blend.o: neo/game/anim/Anim_Blend.cpp
+	$(DO_CXX_B)
+$(BB)/Anim_Import.o: neo/game/anim/Anim_Import.cpp
+	$(DO_CXX_B)
+$(BB)/Anim_Testmodel.o: neo/game/anim/Anim_Testmodel.cpp
+	$(DO_CXX_B)
+$(BB)/Script_Compiler.o: neo/game/script/Script_Compiler.cpp
+	$(DO_CXX_B)
+$(BB)/Script_Interpreter.o: neo/game/script/Script_Interpreter.cpp
+	$(DO_CXX_B)
+$(BB)/Script_Program.o: neo/game/script/Script_Program.cpp
+	$(DO_CXX_B)
+$(BB)/Script_Thread.o: neo/game/script/Script_Thread.cpp
+	$(DO_CXX_B)
+$(BB)/Clip.o: neo/game/physics/Clip.cpp
+	$(DO_CXX_B)
+$(BB)/Force.o: neo/game/physics/Force.cpp
+	$(DO_CXX_B)
+$(BB)/Force_Constant.o: neo/game/physics/Force_Constant.cpp
+	$(DO_CXX_B)
+$(BB)/Force_Drag.o: neo/game/physics/Force_Drag.cpp
+	$(DO_CXX_B)
+$(BB)/Force_Field.o: neo/game/physics/Force_Field.cpp
+	$(DO_CXX_B)
+$(BB)/Force_Spring.o: neo/game/physics/Force_Spring.cpp
+	$(DO_CXX_B)
+$(BB)/Physics.o: neo/game/physics/Physics.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_AF.o: neo/game/physics/Physics_AF.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Actor.o: neo/game/physics/Physics_Actor.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Base.o: neo/game/physics/Physics_Base.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Monster.o: neo/game/physics/Physics_Monster.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Parametric.o: neo/game/physics/Physics_Parametric.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Player.o: neo/game/physics/Physics_Player.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_RigidBody.o: neo/game/physics/Physics_RigidBody.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_Static.o: neo/game/physics/Physics_Static.cpp
+	$(DO_CXX_B)
+$(BB)/Physics_StaticMulti.o: neo/game/physics/Physics_StaticMulti.cpp
+	$(DO_CXX_B)
+$(BB)/Push.o: neo/game/physics/Push.cpp
+	$(DO_CXX_B)
+$(BB)/dllglue.o: neo/sys/morphos/dllglue.c
+	$(DO_CC)
+
+#JPEG
+$(BJP)/jaricom.o:  neo/sys/morphos/jpeg-8c/jaricom.c
+	$(DO_CC)
+$(BJP)/jcarith.o:  neo/sys/morphos/jpeg-8c/jcarith.c
+	$(DO_CC)
+$(BJP)/jcapimin.o:  neo/sys/morphos/jpeg-8c/jcapimin.c
+	$(DO_CC)
+$(BJP)/jccoefct.o:  neo/sys/morphos/jpeg-8c/jccoefct.c
+	$(DO_CC)
+$(BJP)/jccolor.o:  neo/sys/morphos/jpeg-8c/jccolor.c
+	$(DO_CC)
+$(BJP)/jcdctmgr.o:  neo/sys/morphos/jpeg-8c/jcdctmgr.c
+	$(DO_CC)
+$(BJP)/jchuff.o:  neo/sys/morphos/jpeg-8c/jchuff.c
+	$(DO_CC)
+$(BJP)/jcinit.o:  neo/sys/morphos/jpeg-8c/jcinit.c
+	$(DO_CC)
+$(BJP)/jcmainct.o:  neo/sys/morphos/jpeg-8c/jcmainct.c
+	$(DO_CC)
+$(BJP)/jcmaster.o:  neo/sys/morphos/jpeg-8c/jcmaster.c
+	$(DO_CC)
+$(BJP)/jcmarker.o:  neo/sys/morphos/jpeg-8c/jcmarker.c
+	$(DO_CC)
+$(BJP)/jcomapi.o:  neo/sys/morphos/jpeg-8c/jcomapi.c
+	$(DO_CC)
+$(BJP)/jcparam.o:  neo/sys/morphos/jpeg-8c/jcparam.c
+	$(DO_CC)
+$(BJP)/jcphuff.o:  neo/sys/morphos/jpeg-8c/jcphuff.c
+	$(DO_CC)
+$(BJP)/jcprepct.o:  neo/sys/morphos/jpeg-8c/jcprepct.c
+	$(DO_CC)
+$(BJP)/jcsample.o:  neo/sys/morphos/jpeg-8c/jcsample.c
+	$(DO_CC)
+$(BJP)/jctrans.o:  neo/sys/morphos/jpeg-8c/jctrans.c
+	$(DO_CC)
+$(BJP)/jdapimin.o:  neo/sys/morphos/jpeg-8c/jdapimin.c
+	$(DO_CC)
+$(BJP)/jdapistd.o:  neo/sys/morphos/jpeg-8c/jdapistd.c
+	$(DO_CC)
+$(BJP)/jdarith.o:  neo/sys/morphos/jpeg-8c/jdarith.c
+	$(DO_CC)
+$(BJP)/jdatadst.o:  neo/sys/morphos/jpeg-8c/jdatadst.c
+	$(DO_CC)
+$(BJP)/jdatasrc.o:  neo/sys/morphos/jpeg-8c/jdatasrc.c
+	$(DO_CC)
+$(BJP)/jdcoefct.o:  neo/sys/morphos/jpeg-8c/jdcoefct.c
+	$(DO_CC)
+$(BJP)/jdcolor.o:  neo/sys/morphos/jpeg-8c/jdcolor.c
+	$(DO_CC)
+$(BJP)/jddctmgr.o:  neo/sys/morphos/jpeg-8c/jddctmgr.c
+	$(DO_CC)
+$(BJP)/jdhuff.o:  neo/sys/morphos/jpeg-8c/jdhuff.c
+	$(DO_CC)
+$(BJP)/jdinput.o:  neo/sys/morphos/jpeg-8c/jdinput.c
+	$(DO_CC)
+$(BJP)/jdmainct.o:  neo/sys/morphos/jpeg-8c/jdmainct.c
+	$(DO_CC)
+$(BJP)/jdmarker.o:  neo/sys/morphos/jpeg-8c/jdmarker.c
+	$(DO_CC)
+$(BJP)/jdmaster.o:  neo/sys/morphos/jpeg-8c/jdmaster.c
+	$(DO_CC)
+$(BJP)/jdpostct.o:  neo/sys/morphos/jpeg-8c/jdpostct.c
+	$(DO_CC)
+$(BJP)/jdsample.o:  neo/sys/morphos/jpeg-8c/jdsample.c
+	$(DO_CC)
+$(BJP)/jdtrans.o:  neo/sys/morphos/jpeg-8c/jdtrans.c
+	$(DO_CC)
+$(BJP)/jerror.o:  neo/sys/morphos/jpeg-8c/jerror.c
+	$(DO_CC)
+$(BJP)/jfdctflt.o:  neo/sys/morphos/jpeg-8c/jfdctflt.c
+	$(DO_CC)
+$(BJP)/jidctflt.o:  neo/sys/morphos/jpeg-8c/jidctflt.c
+	$(DO_CC)
+$(BJP)/jmemmgr.o:  neo/sys/morphos/jpeg-8c/jmemmgr.c
+	$(DO_CC)
+$(BJP)/jmemnobs.o:  neo/sys/morphos/jpeg-8c/jmemnobs.c
+	$(DO_CC)
+$(BJP)/jutils.o:  neo/sys/morphos/jpeg-8c/jutils.c
+	$(DO_CC)
+$(BJP)/jcapistd.o:  neo/sys/morphos/jpeg-8c/jcapistd.c
+	$(DO_CC)
+$(BJP)/jdmerge.o:  neo/sys/morphos/jpeg-8c/jdmerge.c
+	$(DO_CC)
+$(BJP)/jfdctfst.o:  neo/sys/morphos/jpeg-8c/jfdctfst.c
+	$(DO_CC)
+$(BJP)/jfdctint.o:  neo/sys/morphos/jpeg-8c/jfdctint.c
+	$(DO_CC)
+$(BJP)/jidctfst.o:  neo/sys/morphos/jpeg-8c/jidctfst.c
+	$(DO_CC)
+$(BJP)/jidctint.o:  neo/sys/morphos/jpeg-8c/jidctint.c
+	$(DO_CC)
+$(BJP)/jquant1.o:  neo/sys/morphos/jpeg-8c/jquant1.c
+	$(DO_CC)
+$(BJP)/jquant2.o:  neo/sys/morphos/jpeg-8c/jquant2.c
+	$(DO_CC)
+$(BJP)/rdbmp.o:  neo/sys/morphos/jpeg-8c/rdbmp.c
+	$(DO_CC)
+$(BJP)/rdcolmap.o:  neo/sys/morphos/jpeg-8c/rdcolmap.c
+	$(DO_CC)
+$(BJP)/rdgif.o:  neo/sys/morphos/jpeg-8c/rdgif.c
+	$(DO_CC)
+$(BJP)/rdppm.o:  neo/sys/morphos/jpeg-8c/rdppm.c
+	$(DO_CC)
+$(BJP)/rdrle.o:  neo/sys/morphos/jpeg-8c/rdrle.c
+	$(DO_CC)
+$(BJP)/rdswitch.o:  neo/sys/morphos/jpeg-8c/rdswitch.c
+	$(DO_CC)
+$(BJP)/rdtarga.o:  neo/sys/morphos/jpeg-8c/rdtarga.c
+	$(DO_CC)
+$(BJP)/wrbmp.o:  neo/sys/morphos/jpeg-8c/wrbmp.c
+	$(DO_CC)
+$(BJP)/wrgif.o:  neo/sys/morphos/jpeg-8c/wrgif.c
+	$(DO_CC)
+$(BJP)/wrppm.o:  neo/sys/morphos/jpeg-8c/wrppm.c
+	$(DO_CC)
+$(BJP)/wrrle.o:  neo/sys/morphos/jpeg-8c/wrrle.c
+	$(DO_CC)
+$(BJP)/wrtarga.o:  neo/sys/morphos/jpeg-8c/wrtarga.c
+	$(DO_CC)
+
