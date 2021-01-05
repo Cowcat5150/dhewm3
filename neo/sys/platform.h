@@ -71,7 +71,7 @@ If you have questions concerning this license or the applicable additional terms
 #undef Write
 #undef Seek
 #undef Flush
-//#undef VPrintf
+#undef VPrintf
 
 #endif
 // Win32
