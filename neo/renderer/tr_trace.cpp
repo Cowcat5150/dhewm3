@@ -408,7 +408,7 @@ void RB_ShowTrace( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 		GL_State( GLS_DEPTHFUNC_ALWAYS );
 
 		qglColor4f( 1, 1, 1, 1 );
-		RB_DrawBounds( tri->bounds );
+		//RB_DrawBounds( tri->bounds ); // Cowcat
 
 		if ( radius != 0.0f ) {
 			// draw the expanded triangles
@@ -420,7 +420,7 @@ void RB_ShowTrace( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 		hit = R_LocalTrace( localStart, localEnd, radius, tri );
 		if ( hit.fraction < 1.0 ) {
 			qglColor4f( 1, 1, 1, 1 );
-			RB_DrawBounds( idBounds( hit.point ).Expand( 1 ) );
+			//RB_DrawBounds( idBounds( hit.point ).Expand( 1 ) ); // Cowcat
 		}
 	}
 }
