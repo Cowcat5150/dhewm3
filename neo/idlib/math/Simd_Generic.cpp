@@ -2925,7 +2925,17 @@ void VPCALL idSIMD_Generic::CreateTextureSpaceLightVectors( idVec3 *lightVectors
 	}
 }
 
-void VPCALL idSIMD_Generic::CreateSpecularTextureCoords( idVec4 *texCoords, const idVec3 &lightOrigin, const idVec3 &viewOrigin, const idDrawVert *verts, const int numVerts, const short *indexes, const int numIndexes ) {
+/*
+============
+idSIMD_Generic::CreateSpecularTextureCoords
+
+	Calculates specular texture coordinates for the given triangle vertices.
+	For each vertex the normalized direction towards the light origin is added to the
+	normalized direction towards the view origin and the result is projected onto texture space.
+	The texture coordinates are only calculated for the vertices referenced by the indexes.
+============
+*/
+void VPCALL idSIMD_Generic::CreateSpecularTextureCoords( idVec4 *texCoords, const idVec3 &lightOrigin, const idVec3 &viewOrigin, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) {
 
 	bool *used = (bool *)_alloca16( numVerts * sizeof( used[0] ) );
 	memset( used, 0, numVerts * sizeof( used[0] ) );
@@ -2965,17 +2975,7 @@ void VPCALL idSIMD_Generic::CreateSpecularTextureCoords( idVec4 *texCoords, cons
 	}
 }
 
-/*
-============
-idSIMD_Generic::CreateSpecularTextureCoords
-
-	Calculates specular texture coordinates for the given triangle vertices.
-	For each vertex the normalized direction towards the light origin is added to the
-	normalized direction towards the view origin and the result is projected onto texture space.
-	The texture coordinates are only calculated for the vertices referenced by the indexes.
-============
-*/
-void VPCALL idSIMD_Generic::CreateSpecularTextureCoords( idVec4 *texCoords, const idVec3 &lightOrigin, const idVec3 &viewOrigin, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) {
+void VPCALL idSIMD_Generic::CreateSpecularTextureCoords( idVec4 *texCoords, const idVec3 &lightOrigin, const idVec3 &viewOrigin, const idDrawVert *verts, const int numVerts, const short *indexes, const int numIndexes ) {
 
 	bool *used = (bool *)_alloca16( numVerts * sizeof( used[0] ) );
 	memset( used, 0, numVerts * sizeof( used[0] ) );
