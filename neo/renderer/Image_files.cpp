@@ -32,8 +32,14 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "renderer/Image.h"
 
+#if defined(__MORPHOS__)
+extern "C" {
+#include "sys/morphos/jpeg-8c/jpeglib.h"
+}
+#else
 #include <jpeglib.h>
 #include <jerror.h>
+#endif
 
 /*
 

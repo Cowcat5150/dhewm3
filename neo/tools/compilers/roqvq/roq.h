@@ -29,7 +29,13 @@ If you have questions concerning this license or the applicable additional terms
 #define __roq_h__
 
 //#define JPEG_INTERNALS
+#if defined(__MORPHOS__)
+extern "C" {
+#include "sys/morphos/jpeg-8c/jpeglib.h"
+}
+#else
 #include <jpeglib.h>
+#endif
 
 #include "tools/compilers/roqvq/gdefs.h"
 #include "tools/compilers/roqvq/roqParam.h"
