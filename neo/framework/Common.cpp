@@ -2921,7 +2921,9 @@ void idCommonLocal::Init( int argc, char **argv ) {
 		Sys_Init();
 
 		// initialize networking
+        #if !defined(__MORPHOS__)
 		Sys_InitNetworking();
+        #endif
 
 		// override cvars from command line
 		StartupVariable( NULL, false );
