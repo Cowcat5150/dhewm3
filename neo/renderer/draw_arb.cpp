@@ -452,6 +452,59 @@ static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 }
 
 
+static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
+{
+	const srfTriangles_t	*tri = din->surf->geo;
+
+	// set the vertex arrays, which may not all be enabled on a given pass
+	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
+	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
+	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
+
+    qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+    GL_SelectTexture( 0 );
+    din->diffuseImage->Bind();
+
+    GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+
+    if ( din->vertexColor == SVC_IGNORE )
+    {
+		qglColor4fv( din->diffuseColor.ToFloatPtr() );
+    }
+
+/*
+    else 
+    {
+		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), (void *)&ac->color );
+		qglEnableClientState( GL_COLOR_ARRAY );
+
+		if ( din->vertexColor == SVC_INVERSE_MODULATE ) {
+			GL_TexEnv( GL_COMBINE_ARB );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_OPERAND0_RGB_ARB, GL_SRC_COLOR );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_OPERAND1_RGB_ARB, GL_ONE_MINUS_SRC_COLOR );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1 );
+		}
+    }
+*/
+    
+    RB_DrawElementsWithCounters( tri );
+
+    GL_SelectTexture( 0 );
+/*
+    if ( din->vertexColor != SVC_IGNORE )
+    {
+		qglDisableClientState( GL_COLOR_ARRAY );
+		GL_TexEnv( GL_MODULATE );
+	}
+*/
+    globalImages->BindNull();
+	
+}
+
 /*
 ==================
 RB_CreateDrawInteractions
@@ -464,25 +517,37 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 	}
 
 	// force a space calculation
-	backEnd.currentSpace = NULL;
+    backEnd.currentSpace = NULL;
 
-	if ( r_useTripleTextureARB.GetBool() && glConfig.maxTextureUnits >= 3 )
+    if ( !r_usedrawinteraction0.GetBool() )
     {
-		for ( ; surf ; surf = surf->nextOnLight )
+        if ( r_useTripleTextureARB.GetBool() && glConfig.maxTextureUnits >= 3 )
         {
-			// break it up into multiple primitive draw interactions if necessary
-			RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawThreeTextureInteraction );
-		}
-	} 
+            for ( ; surf ; surf = surf->nextOnLight )
+            {
+                // break it up into multiple primitive draw interactions if necessary
+                RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawThreeTextureInteraction );
+            }
+        }
+
+        else
+        {
+            for ( ; surf ; surf = surf->nextOnLight )
+            {
+                // break it up into multiple primitive draw interactions if necessary
+                RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction );
+            }
+        }
+    }
 
     else
     {
-		for ( ; surf ; surf = surf->nextOnLight )
+        for ( ; surf ; surf = surf->nextOnLight )
         {
-			// break it up into multiple primitive draw interactions if necessary
-			RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction );
-		}
-	}
+            // break it up into multiple primitive draw interactions if necessary
+            RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction0 );
+        }
+    }
 }
 
 
