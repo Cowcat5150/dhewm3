@@ -672,6 +672,7 @@ const int MAX_GUI_SURFACES	= 1024;		// default size of the drawSurfs list for gu
 										// be automatically expanded as needed
 
 typedef enum {
+    BE_ARB, // Cowcat
 	BE_ARB2,
 	BE_BAD
 } backEndName_t;
@@ -840,6 +841,7 @@ extern idCVar r_renderer;				// arb2, etc
 extern idCVar r_checkBounds;			// compare all surface bounds with precalculated ones
 
 extern idCVar r_useLightPortalFlow;		// 1 = do a more precise area reference determination
+extern idCVar r_useTripleTextureARB;	// 1 = cards with 3+ texture units do a two pass instead of three pass
 extern idCVar r_useShadowSurfaceScissor;// 1 = scissor shadows by the scissor rect of the interaction surfaces
 extern idCVar r_useConstantMaterials;	// 1 = use pre-calculated material registers if possible
 extern idCVar r_useInteractionTable;	// create a full entityDefs * lightDefs table to make finding interactions faster
@@ -1281,6 +1283,7 @@ DRAW_*
 ============================================================
 */
 
+void	RB_ARB_DrawInteractions( void ); // Cowcat
 void	R_ARB2_Init( void );
 void	RB_ARB2_DrawInteractions( void );
 void	R_ReloadARBPrograms_f( const idCmdArgs &args );

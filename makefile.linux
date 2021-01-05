@@ -178,6 +178,7 @@ $(BR)/RenderWorld_demo.o \
 $(BR)/RenderWorld_load.o \
 $(BR)/RenderWorld_portals.o \
 $(BR)/VertexCache.o \
+$(BR)/draw_arb.o \
 $(BR)/draw_arb2.o \
 $(BR)/draw_common.o \
 $(BR)/tr_backend.o \
@@ -396,6 +397,8 @@ $(BR)/RenderWorld_load.o: neo/renderer/RenderWorld_load.cpp
 $(BR)/RenderWorld_portals.o: neo/renderer/RenderWorld_portals.cpp
 	$(DO_CXX)
 $(BR)/VertexCache.o: neo/renderer/VertexCache.cpp
+	$(DO_CXX)
+$(BR)/draw_arb.o: neo/renderer/draw_arb.cpp
 	$(DO_CXX)
 $(BR)/draw_arb2.o: neo/renderer/draw_arb2.cpp
 	$(DO_CXX)
