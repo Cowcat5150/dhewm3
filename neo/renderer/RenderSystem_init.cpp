@@ -461,6 +461,13 @@ static void R_CheckPortableExtensions( void ) {
 		qglDepthBoundsEXT = (PFNGLDEPTHBOUNDSEXTPROC)GLimp_ExtensionPointer( "glDepthBoundsEXT" );
 	}
 
+    #if 1 // Minimize extensions used - Test for old ARB code.
+    glConfig.cubeMapAvailable = false;
+    glConfig.envDot3Available = false;
+    glConfig.textureCompressionAvailable = false;
+    glConfig.ARBVertexProgramAvailable = false;
+    glConfig.ARBFragmentProgramAvailable = false;
+    #endif
 }
 
 
