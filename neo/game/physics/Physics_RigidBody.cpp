@@ -869,7 +869,7 @@ bool idPhysics_RigidBody::Evaluate( int timeStepMSec, int endTimeMSec ) {
 
 	// if the body is at rest
 	if ( current.atRest >= 0 || timeStep <= 0.0f ) {
-		DebugDraw();
+		//DebugDraw(); // d3wasm - Cowcat
 		return false;
 	}
 
@@ -920,7 +920,7 @@ bool idPhysics_RigidBody::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	// update the position of the clip model
 	clipModel->Link( gameLocal.clip, self, clipModel->GetId(), current.i.position, current.i.orientation );
 
-	DebugDraw();
+	//DebugDraw(); // d3wasm - Cowcat
 
 	if ( !noContact ) {
 
