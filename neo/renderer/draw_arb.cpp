@@ -77,6 +77,9 @@ it is set to lessThan for blended transparent surfaces
 
 ==================
 */
+
+#if 0
+
 static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 {
 	//const drawSurf_t *surf = din->surf;
@@ -273,6 +276,71 @@ qglDisable( GL_TEXTURE_GEN_Q );
 //	RB_FinishStageTexture( &surfaceStage->texture, surf );
 }
 
+#else
+
+static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
+{
+	const srfTriangles_t	*tri = din->surf->geo;
+
+	// set the vertex arrays, which may not all be enabled on a given pass
+	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
+	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
+	GL_SelectTexture( 0 );
+	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
+    
+    qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+	//-----------------------------------------------------
+	//
+	// light falloff / projected light / surface color for diffuse maps
+	//
+	//-----------------------------------------------------
+	
+	// texture 0 will get the surface color texture
+	GL_SelectTexture( 0 );
+    din->diffuseImage->Bind();
+
+	// select the vertex color source
+	if ( din->vertexColor == SVC_IGNORE )
+    {
+		qglColor4fv( din->diffuseColor.ToFloatPtr() );
+	}
+
+	// texture 1 will get the light projected texture
+	GL_SelectTexture( 1 );
+	qglEnable( GL_TEXTURE_GEN_S );
+	qglEnable( GL_TEXTURE_GEN_T );
+	qglEnable( GL_TEXTURE_GEN_Q );
+	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[0].ToFloatPtr() );
+	qglTexGenfv( GL_T, GL_OBJECT_PLANE, din->lightProjection[1].ToFloatPtr() );
+	qglTexGenfv( GL_Q, GL_OBJECT_PLANE, din->lightProjection[2].ToFloatPtr() );
+
+	din->lightImage->Bind();
+
+	// texture 2 will get the light falloff texture
+	GL_SelectTexture( 2 );
+	qglEnable( GL_TEXTURE_GEN_S );
+	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[3].ToFloatPtr() );
+
+	din->lightFalloffImage->Bind();
+
+	// draw it
+	RB_DrawElementsWithCounters( tri );
+
+	qglDisable( GL_TEXTURE_GEN_S );
+	globalImages->BindNull();
+
+	GL_SelectTexture( 1 );
+	qglDisable( GL_TEXTURE_GEN_S );
+	qglDisable( GL_TEXTURE_GEN_T );
+	qglDisable( GL_TEXTURE_GEN_Q );
+	globalImages->BindNull();
+
+	GL_SelectTexture( 0 );
+}
+
+#endif
+
 /*
 ==================
 RB_ARB_DrawThreeTextureInteraction
@@ -458,7 +526,7 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 
 	// set the vertex arrays, which may not all be enabled on a given pass
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
-	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
+    qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 
     qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
@@ -466,13 +534,13 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
     GL_SelectTexture( 0 );
     din->diffuseImage->Bind();
 
-    GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+    //GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+    //GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
 
     if ( din->vertexColor == SVC_IGNORE )
     {
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
     }
-
 /*
     else 
     {
@@ -490,7 +558,7 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 		}
     }
 */
-    
+
     RB_DrawElementsWithCounters( tri );
 
     GL_SelectTexture( 0 );
@@ -501,6 +569,7 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 		GL_TexEnv( GL_MODULATE );
 	}
 */
+
     globalImages->BindNull();
 	
 }
@@ -518,6 +587,8 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 
 	// force a space calculation
     backEnd.currentSpace = NULL;
+
+    GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
 
     if ( !r_usedrawinteraction0.GetBool() )
     {
@@ -567,6 +638,10 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 	}
 
 	if ( vLight->lightShader->IsBlendLight() ) {
+		return;
+	}
+
+    if ( !vLight->localInteractions && !vLight->globalInteractions && !vLight->translucentInteractions ) {
 		return;
 	}
 
