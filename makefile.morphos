@@ -17,8 +17,8 @@ PATH_SOURCE = ./
 CXX_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive
 CC_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security
 
-CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I/gg/os-include/SDL2 -I/gg/os-include/AL
-CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I$(PATH_SOURCE)/neo/game -I/gg/os-include/SDL2
+CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I/gg/usr/local/include/SDL2 -I/gg/usr/local/include
+CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I$(PATH_SOURCE)/neo/game -I/gg/usr/local/include/SDL2
 CXX_DEFINES = -D__DOOM_DLL__
 CXX_DEFINES_BASE = -DGAME_DLL -Dbase_EXPORTS
 CXX_DEFINES_ALTIVEC = -D__VECTOR__
@@ -376,7 +376,7 @@ JPEG = $(B)/jpeg.a
 BASE = $(B)/base.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) $(JPEG) -noixemul -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
+LIBS = $(IDLIB) $(JPEG) -noixemul -L/gg/usr/local/lib -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
 
 all: $(IDLIB) $(BASE) $(JPEG) $(DOOM)  
 
