@@ -235,7 +235,9 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 	*buffer = NULL;
 
 	// if we don't have any remaining unused headers, allocate some more
-	if ( freeStaticHeaders.next == &freeStaticHeaders ) {
+	if ( freeStaticHeaders.next == &freeStaticHeaders ) { // Cowcat notes: Huge lag here for MOS - also happens few times than PC version.
+        
+        common->Printf( "-----Alloc more headers in. Size = %i\n", size );
 
 		for ( int i = 0; i < EXPAND_HEADERS; i++ ) {
 			block = headerAllocator.Alloc();
@@ -246,10 +248,15 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 
 			if( !virtualMemory ) {
 				qglGenBuffersARB( 1, & block->vbo );
+                //block->size = 0; // don't wrap around ? Cowcat 
 			}
 		}
+
+        common->Printf( "-----Alloc more headers out. Size = %i\n", block->size );
+        //common->Printf( "-----Alloc more headers out\n");
 	}
 
+    // try to find a matching block to replace so that we're not continually respecifying vbo data each frame
     for (vertCache_t *findblock = freeStaticHeaders.next; /**/; findblock = findblock->next) {
             if(findblock == &freeStaticHeaders) {
                 block = freeStaticHeaders.next;
