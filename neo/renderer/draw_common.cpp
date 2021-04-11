@@ -62,7 +62,8 @@ void RB_BakeTextureMatrixIntoTexgen( idPlane lightProject[3], const float *textu
 	genMatrix[11] = lightProject[2][2];
 	genMatrix[15] = lightProject[2][3];
 
-	myGlMultMatrix( genMatrix, backEnd.lightTextureMatrix, final );
+	//myGlMultMatrix( genMatrix, backEnd.lightTextureMatrix, final );
+    myGlMultMatrix( genMatrix, textureMatrix, final );
 
 	lightProject[0][0] = final[0];
 	lightProject[0][1] = final[4];
