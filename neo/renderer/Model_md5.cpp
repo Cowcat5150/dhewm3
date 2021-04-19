@@ -686,18 +686,13 @@ void idRenderModelMD5::DrawJoints( const renderEntity_t *ent, const struct viewD
 		pos = ent->origin + joint->ToVec3() * ent->axis;
 		if ( md5Joint->parent ) {
 			parentNum = md5Joint->parent - joints.Ptr();
-			//session->rw->DebugLine( colorWhite, ent->origin + ent->joints[ parentNum ].ToVec3() * ent->axis, pos );
-            session->rw->DebugLine( colorMagenta, ent->origin + ent->joints[ parentNum ].ToVec3() * ent->axis, pos );
+			session->rw->DebugLine( colorWhite, ent->origin + ent->joints[ parentNum ].ToVec3() * ent->axis, pos );
 		}
-
-        /*
 		session->rw->DebugLine( colorRed,	pos, pos + joint->ToMat3()[ 0 ] * 2.0f * ent->axis );
 		session->rw->DebugLine( colorGreen,	pos, pos + joint->ToMat3()[ 1 ] * 2.0f * ent->axis );
 		session->rw->DebugLine( colorBlue,	pos, pos + joint->ToMat3()[ 2 ] * 2.0f * ent->axis );
-        */
 	}
 
-    /*
 	idBounds bounds;
 
 	bounds.FromTransformedBounds( ent->bounds, vec3_zero, ent->axis );
@@ -715,7 +710,6 @@ void idRenderModelMD5::DrawJoints( const renderEntity_t *ent, const struct viewD
 			session->rw->DrawText( joints[ i ].name, pos + offset, scale, colorWhite, view->renderView.viewaxis, 1 );
 		}
 	}
-    */
 }
 
 /*
