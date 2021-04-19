@@ -1044,6 +1044,8 @@ static void RB_ShowTangentSpace( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 
 	GL_State( GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA );
 
+    #if 0
+
 	for ( i = 0 ; i < numDrawSurfs ; i++ ) {
 		drawSurf = drawSurfs[i];
 
@@ -1073,6 +1075,35 @@ static void RB_ShowTangentSpace( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 		}
 		qglEnd();
 	}
+
+    #else // Cowcat
+
+    for ( i = 0 ; i < numDrawSurfs ; i++ ) {
+		drawSurf = drawSurfs[i];
+
+		RB_SimpleSurfaceSetup( drawSurf );
+
+		tri = drawSurf->geo;
+
+		if ( !tri->verts ) {
+			continue;
+		}
+
+		qglBegin( GL_TRIANGLES );
+
+		for ( j = 0 ; j < tri->numIndexes ; j++ ) {
+			const idDrawVert *v;
+
+			v = &tri->verts[tri->indexes[j]];
+
+			qglColor4f( 0.5 + 0.5 * v->normal[0],  0.5 + 0.5 * v->normal[1], 0.5 + 0.5 * v->normal[2], 0.5 );
+		    qglVertex3fv( v->xyz.ToFloatPtr() );
+		}
+
+		qglEnd();
+	}
+
+    #endif
 
 	GL_State( GLS_DEFAULT );
 }

@@ -698,6 +698,9 @@ RB_ARB_DrawInteractions
 */
 void RB_ARB_DrawInteractions( void )
 {
+     if ( r_showTangentSpace.GetInteger() ) // Cowcat
+           return;
+
 	qglEnable( GL_STENCIL_TEST );
 
 	for ( viewLight_t *vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
