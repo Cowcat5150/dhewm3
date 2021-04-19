@@ -164,6 +164,8 @@ void idVertexCache::Init() {
 	if ( r_vertexBufferMegs.GetInteger() < 8 ) {
 		r_vertexBufferMegs.SetInteger( 8 );
 	}
+   
+    currentVertexBuffer = 0;
 
 	virtualMemory = false;
 
@@ -214,6 +216,8 @@ void idVertexCache::PurgeAll() {
 	while( staticHeaders.next != &staticHeaders ) {
 		ActuallyFree( staticHeaders.next );
 	}
+
+    currentVertexBuffer = 0;
 }
 
 /*
@@ -225,6 +229,7 @@ void idVertexCache::Shutdown() {
 //	PurgeAll();	// !@#: also purge the temp buffers
 
 	headerAllocator.Shutdown();
+    currentVertexBuffer = 0;
 }
 
 /*
