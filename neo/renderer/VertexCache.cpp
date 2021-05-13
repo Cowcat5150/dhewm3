@@ -330,7 +330,9 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 			if ( allocatingTempBuffer ) {
 				qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STREAM_DRAW_ARB );
 			} else {
-				qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
+				//qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
+                qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, 0, GL_STATIC_DRAW_ARB );
+                qglBufferSubDataARB( GL_ARRAY_BUFFER_ARB, 0, (GLsizeiptrARB)size, data );
 			}
 		}
 	} else {
