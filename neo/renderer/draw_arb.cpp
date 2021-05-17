@@ -287,8 +287,8 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	GL_SelectTexture( 0 );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
-    
-    qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
 
 	//-----------------------------------------------------
 	//
@@ -298,11 +298,11 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	
 	// texture 0 will get the surface color texture
 	GL_SelectTexture( 0 );
-    din->diffuseImage->Bind();
+	din->diffuseImage->Bind();
 
 	// select the vertex color source
 	if ( din->vertexColor == SVC_IGNORE )
-    {
+	{
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
 	}
 
@@ -383,12 +383,12 @@ static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 	GL_SelectTexture( 1 );
 
 	if ( din->ambientLight )
-    {
+	{
 		globalImages->ambientNormalMap->Bind();	// fixed value
 	}
 
-    else
-    {
+	else
+	{
 		globalImages->normalCubeMapImage->Bind();
 	}
 
@@ -431,18 +431,18 @@ static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 
 	// select the vertex color source
 	if ( din->vertexColor == SVC_IGNORE )
-    {
+	{
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
 	}
 
-    else
-    {
+	else
+	{
 		// FIXME: does this not get diffuseColor blended in?
 		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), (void *)&ac->color );
 		qglEnableClientState( GL_COLOR_ARRAY );
 
 		if ( din->vertexColor == SVC_INVERSE_MODULATE )
-        {
+		{
 			GL_TexEnv( GL_COMBINE_ARB );
 			qglTexEnvi( GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE );
 			qglTexEnvi( GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE );
@@ -511,7 +511,7 @@ static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 	GL_SelectTexture( 0 );
 
 	if ( din->vertexColor != SVC_IGNORE )
-    {
+	{
 		qglDisableClientState( GL_COLOR_ARRAY );
 		GL_TexEnv( GL_MODULATE );
 	}
@@ -526,24 +526,25 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 
 	// set the vertex arrays, which may not all be enabled on a given pass
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
-    qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
+	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 
-    qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
 
-    GL_SelectTexture( 0 );
-    din->diffuseImage->Bind();
+	GL_SelectTexture( 0 );
+	din->diffuseImage->Bind();
 
-    //GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
-    //GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+	//GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+	//GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
 
-    if ( din->vertexColor == SVC_IGNORE )
-    {
+	if ( din->vertexColor == SVC_IGNORE )
+	{
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
-    }
+	}
+
 /*
-    else 
-    {
+	else
+	{
 		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), (void *)&ac->color );
 		qglEnableClientState( GL_COLOR_ARRAY );
 
@@ -556,21 +557,22 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 			qglTexEnvi( GL_TEXTURE_ENV, GL_OPERAND1_RGB_ARB, GL_ONE_MINUS_SRC_COLOR );
 			qglTexEnvi( GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1 );
 		}
-    }
+	}
 */
 
-    RB_DrawElementsWithCounters( tri );
+	RB_DrawElementsWithCounters( tri );
 
-    GL_SelectTexture( 0 );
+	//GL_SelectTexture( 0 );
+
 /*
-    if ( din->vertexColor != SVC_IGNORE )
-    {
+	if ( din->vertexColor != SVC_IGNORE )
+	{
 		qglDisableClientState( GL_COLOR_ARRAY );
 		GL_TexEnv( GL_MODULATE );
 	}
 */
 
-    globalImages->BindNull();
+	globalImages->BindNull();
 	
 }
 
@@ -586,39 +588,40 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 	}
 
 	// force a space calculation
-    backEnd.currentSpace = NULL;
+	backEnd.currentSpace = NULL;
 
-    GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
 
-    if ( !r_usedrawinteraction0.GetBool() )
-    {
-        if ( r_useTripleTextureARB.GetBool() && glConfig.maxTextureUnits >= 3 )
-        {
-            for ( ; surf ; surf = surf->nextOnLight )
-            {
-                // break it up into multiple primitive draw interactions if necessary
-                RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawThreeTextureInteraction );
-            }
-        }
+	if ( !r_usedrawinteraction0.GetBool() )
+	{
 
-        else
-        {
-            for ( ; surf ; surf = surf->nextOnLight )
-            {
-                // break it up into multiple primitive draw interactions if necessary
-                RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction );
-            }
-        }
-    }
+		if ( r_useTripleTextureARB.GetBool() && glConfig.maxTextureUnits >= 3 )
+		{
+			for ( ; surf ; surf = surf->nextOnLight )
+			{
+				// break it up into multiple primitive draw interactions if necessary
+				RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawThreeTextureInteraction );
+			}
+		}
 
-    else
-    {
-        for ( ; surf ; surf = surf->nextOnLight )
-        {
-            // break it up into multiple primitive draw interactions if necessary
-            RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction0 );
-        }
-    }
+		else
+		{
+			for ( ; surf ; surf = surf->nextOnLight )
+			{
+				// break it up into multiple primitive draw interactions if necessary
+				RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction );
+			}
+		}
+	}
+
+	else
+	{
+		for ( ; surf ; surf = surf->nextOnLight )
+		{
+			// break it up into multiple primitive draw interactions if necessary
+			RB_CreateSingleDrawInteractions( surf, RB_ARB_DrawInteraction0 );
+		}
+	}
 }
 
 
@@ -641,7 +644,8 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 		return;
 	}
 
-    if ( !vLight->localInteractions && !vLight->globalInteractions && !vLight->translucentInteractions ) {
+	if ( !vLight->localInteractions && !vLight->globalInteractions &&
+		!vLight->globalShadows && !vLight->localShadows && !vLight->translucentInteractions ) {
 		return;
 	}
 
@@ -649,11 +653,11 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 
 	// clear the stencil buffer if needed
 	if ( vLight->globalShadows || vLight->localShadows )
-    {
+	{
 		backEnd.currentScissor = vLight->scissorRect;
 
 		if ( r_useScissor.GetBool() )
-        {
+		{
 			qglScissor( backEnd.viewDef->viewport.x1 + backEnd.currentScissor.x1, 
 				backEnd.viewDef->viewport.y1 + backEnd.currentScissor.y1,
 				backEnd.currentScissor.x2 + 1 - backEnd.currentScissor.x1,
@@ -663,8 +667,8 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 		qglClear( GL_STENCIL_BUFFER_BIT );
 	}
 
-    else
-    {
+	else
+	{
 		// no shadows, so no need to read or write the stencil buffer
 		// we might in theory want to use GL_ALWAYS instead of disabling
 		// completely, to satisfy the invarience rules
@@ -698,10 +702,10 @@ RB_ARB_DrawInteractions
 */
 void RB_ARB_DrawInteractions( void )
 {
-     if ( r_showTangentSpace.GetInteger() ) // Cowcat
-           return;
+	if ( r_showTangentSpace.GetInteger() ) // Cowcat
+		return;
 
-	qglEnable( GL_STENCIL_TEST );
+	//qglEnable( GL_STENCIL_TEST );
 
 	for ( viewLight_t *vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
 		RB_RenderViewLight( vLight );
