@@ -893,7 +893,7 @@ int	idTCP::Write(void *data, int size) {
 	struct sigaction action;
 
 	action.sa_handler = got_SIGPIPE;
-	sigemptyset( &action.sa_mask );
+	//sigemptyset( &action.sa_mask );
 	action.sa_flags = 0;
 
     #if 0 // Cowcat
