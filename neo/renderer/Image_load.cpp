@@ -1577,34 +1577,36 @@ void	idImage::ActuallyLoadImage( bool checkForPrecompressed, bool fromBackEnd ) 
 	//
 	if ( cubeFiles != CF_2D ) {
 
-        if( !glConfig.cubeMapAvailable ) // Cowcat
-        {
-                MakeDefault();
-                return;
-        }
-
-        else // Cowcat
-        {
-		byte	*pics[6];
-
-		// we don't check for pre-compressed cube images currently
-		R_LoadCubeImages( imgName, cubeFiles, pics, &width, &timestamp );
-
-		if ( pics[0] == NULL ) {
-			common->Warning( "Couldn't load cube image: %s", imgName.c_str() );
+		if( !glConfig.cubeMapAvailable ) // Cowcat
+		{
+			common->Printf( "ActuallyLoadImage - cubefiles defaulted = %s\n", imgName.c_str() ); // Cowcat
 			MakeDefault();
 			return;
 		}
 
-		GenerateCubeImage( (const byte **)pics, width, filter, allowDownSize, depth );
-		precompressedFile = false;
+		else
+		{
+			byte	*pics[6];
 
-		for ( int i = 0 ; i < 6 ; i++ ) {
-			if ( pics[i] ) {
-				R_StaticFree( pics[i] );
+			// we don't check for pre-compressed cube images currently
+			R_LoadCubeImages( imgName, cubeFiles, pics, &width, &timestamp );
+
+			if ( pics[0] == NULL ) {
+				common->Warning( "Couldn't load cube image: %s", imgName.c_str() );
+				MakeDefault();
+				return;
 			}
-		}
-        } // Cowcat
+
+			GenerateCubeImage( (const byte **)pics, width, filter, allowDownSize, depth );
+			precompressedFile = false;
+
+			for ( int i = 0 ; i < 6 ; i++ ) {
+				if ( pics[i] ) {
+					R_StaticFree( pics[i] );
+				}
+			}
+		} // Cowcat
+
 	} else {
 		// see if we have a pre-generated image file that is
 		// already image processed and compressed
