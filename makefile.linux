@@ -12,18 +12,19 @@ RANLIB = ranlib
 
 PATH_SOURCE = ./
 
-CXX_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive
+CXX_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive -Wno-class-memaccess
+CXX_FLAGS_BASE = $(CXX_FLAGS) -shared -Wl,-soname,base.so
 CC_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security
-CXX_FLAGS_BASE = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -shared -Wl,-soname,base.so
 
-CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I/usr/include/SDL2 -I/usr/include/AL
-CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)/neo -I$(PATH_SOURCE)/neo/game -I/usr/include/SDL2
+CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I/usr/include/SDL2 -I/usr/include/AL
+CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/game -I/usr/include/SDL2
 CXX_DEFINES = -D__DOOM_DLL__
 CXX_DEFINES_BASE = -DGAME_DLL -Dbase_EXPORTS
 
 DO_CC = $(CC) $(CC_FLAGS) $(C_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX_B = $(CXX) $(CXX_FLAGS_BASE) $(CXX_DEFINES_BASE) $(CXX_INCLUDES_BASE) -o $@ -c $<
+
 
 OBJIDLIB = \
 $(BID)/Bounds.o \
@@ -318,7 +319,7 @@ IDLIB = $(B)/idlib.a
 BASE = $(B)/base.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) -ljpeg -lopenal -lvorbisfile -lvorbis -logg -lz -lSDL2 -lpthread -ldl
+LIBS = $(IDLIB) -lopenal -lvorbisfile -lvorbis -logg -lz -lSDL2 -lpthread -ldl
 
 all: $(IDLIB) $(BASE) $(DOOM)
 

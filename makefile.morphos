@@ -1,11 +1,11 @@
 B = buildmos
 BID = $(B)/idlib
-BJP = $(B)/jpeg
-BR  = $(B)/doom
 BB  = $(B)/base
+BR  = $(B)/doom
 
-CXX = ppc-morphos-g++-10 -mcpu=750 -mtune=7450
-CC = ppc-morphos-gcc-10 -mcpu=750 -mtune=7450
+
+CXX = ppc-morphos-g++ -mcpu=750 -mtune=7450
+CC = ppc-morphos-gcc -mcpu=750 -mtune=7450
 STRIP = ppc-morphos-strip
 AR = ppc-morphos-ar
 RANLIB = ppc-morphos-ranlib
@@ -26,58 +26,6 @@ DO_CC = $(CC) $(CC_FLAGS) $(C_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX_ALTIVEC = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_DEFINES_ALTIVEC) $(CXX_INCLUDES) -fvec -maltivec -faltivec -mabi=altivec -o $@ -c $<
 DO_CXX_B = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES_BASE) $(CXX_INCLUDES_BASE) -o $@ -c $<
-
-OBJJPEG = \
-$(BJP)/jaricom.o \
-$(BJP)/jcapimin.o \
-$(BJP)/jcapistd.o \
-$(BJP)/jcarith.o \
-$(BJP)/jccoefct.o \
-$(BJP)/jccolor.o \
-$(BJP)/jcdctmgr.o \
-$(BJP)/jchuff.o \
-\
-$(BJP)/jcinit.o \
-$(BJP)/jcmainct.o \
-$(BJP)/jcmarker.o \
-$(BJP)/jcmaster.o \
-$(BJP)/jcomapi.o \
-$(BJP)/jcparam.o \
-$(BJP)/jcprepct.o \
-$(BJP)/jcsample.o \
-$(BJP)/jctrans.o \
-\
-$(BJP)/jdapimin.o \
-$(BJP)/jdapistd.o \
-$(BJP)/jdarith.o \
-$(BJP)/jdatadst.o \
-$(BJP)/jdatasrc.o \
-$(BJP)/jdcoefct.o \
-$(BJP)/jdcolor.o \
-$(BJP)/jddctmgr.o \
-\
-$(BJP)/jdhuff.o \
-$(BJP)/jdinput.o \
-$(BJP)/jdmainct.o \
-$(BJP)/jdmarker.o \
-$(BJP)/jdmaster.o \
-$(BJP)/jdmerge.o \
-$(BJP)/jdpostct.o \
-$(BJP)/jdsample.o \
-$(BJP)/jdtrans.o \
-$(BJP)/jerror.o \
-\
-$(BJP)/jfdctflt.o \
-$(BJP)/jfdctfst.o \
-$(BJP)/jfdctint.o \
-$(BJP)/jidctflt.o \
-$(BJP)/jidctfst.o \
-$(BJP)/jidctint.o \
-$(BJP)/jmemmgr.o \
-$(BJP)/jmemnobs.o \
-$(BJP)/jquant1.o \
-$(BJP)/jquant2.o \
-$(BJP)/jutils.o \
 
 OBJIDLIB = \
 $(BID)/Bounds.o \
@@ -371,20 +319,15 @@ $(BR)/glimp.o \
 $(BR)/edit_stub.o
 
 IDLIB = $(B)/idlib.a
-JPEG = $(B)/jpeg.a
 BASE = $(B)/base.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) $(JPEG) -noixemul -L/gg/usr/local/lib -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
+LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
 
-all: $(IDLIB) $(BASE) $(JPEG) $(DOOM)  
+all: $(IDLIB) $(BASE) $(DOOM)  
 
 $(IDLIB): $(OBJIDLIB)
 	$(AR) r $(IDLIB) $(OBJIDLIB)
-	$(RANLIB) $@
-
-$(JPEG): $(OBJJPEG)
-	$(AR) r $(JPEG) $(OBJJPEG)
 	$(RANLIB) $@
 
 $(BASE): $(OBJBASE)
