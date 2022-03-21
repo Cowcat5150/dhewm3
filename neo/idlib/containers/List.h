@@ -30,6 +30,13 @@ If you have questions concerning this license or the applicable additional terms
 #define __LIST_H__
 
 #include "sys/platform.h"
+
+#if defined(__MORPHOS__)
+#undef Remove
+#undef Insert
+#undef Allocate
+#endif
+
 /*
 ===============================================================================
 

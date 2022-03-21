@@ -1,15 +1,18 @@
+#export PATH=$PATH:/gg/bin
+
 B = buildmos
 BID = $(B)/idlib
 BB  = $(B)/base
 BR  = $(B)/doom
 
 
-CXX = ppc-morphos-g++-10 -mcpu=750 -mtune=7450
-CC = ppc-morphos-gcc-10 -mcpu=750 -mtune=7450
+CXX = ppc-morphos-g++ -mcpu=750 -mtune=7450
+CC = ppc-morphos-gcc -mcpu=750 -mtune=7450
 STRIP = ppc-morphos-strip
 AR = ppc-morphos-ar
 RANLIB = ppc-morphos-ranlib
 
+#PATH_SOURCE = /home/cowcat/Escritorio/Cross/dhewm3
 PATH_SOURCE = ./
 
 CXX_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive -Wno-class-memaccess

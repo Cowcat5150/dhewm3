@@ -34,6 +34,12 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "framework/Unzip.h"
 
+#if defined(__MORPHOS__)
+#undef Remove
+#undef Enable
+#undef Insert
+#endif
+
 /*
 ==============================================================
 
