@@ -466,7 +466,7 @@ void GLimp_GrabInput(int flags) {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
 	SDL_SetRelativeMouseMode((grab && (flags & GRAB_HIDECURSOR)) ? SDL_TRUE : SDL_FALSE);
-	SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE);
+	//SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE); // this pokes ENV: and seems to not be needed
 #else
 	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
 	SDL_WM_GrabInput(grab ? SDL_GRAB_ON : SDL_GRAB_OFF);
