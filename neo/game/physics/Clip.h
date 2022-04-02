@@ -32,6 +32,10 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/geometry/TraceModel.h"
 #include "cm/CollisionModel.h"
 
+#if defined(__MORPHOS__)
+#undef Disable
+#endif
+
 class idSaveGame;
 class idRestoreGame;
 

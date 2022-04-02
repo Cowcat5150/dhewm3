@@ -36,6 +36,10 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "GameBase.h"
 
+#if defined(__MORPHOS__)
+#undef SetFunction
+#endif
+
 class idEventDef;
 class idVarDef;
 class idTypeDef;
