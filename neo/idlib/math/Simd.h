@@ -146,11 +146,11 @@ public:
 	virtual	void VPCALL ClampMin( float *dst,		const float *src,		const float min,		const int count ) = 0;
 	virtual	void VPCALL ClampMax( float *dst,		const float *src,		const float max,		const int count ) = 0;
 
-	virtual void VPCALL Memcpy( void *dst,			const void *src,		const int count ) = 0;
-	virtual void VPCALL Memset( void *dst,			const int val,			const int count ) = 0;
+	static void VPCALL Memcpy( void *dst,			const void *src,		const int count );
+	static void VPCALL Memset( void *dst,			const int val,			const int count );
 
 	// these assume 16 byte aligned and 16 byte padded memory
-	virtual void VPCALL Zero16( float *dst,			const int count ) = 0;
+	static void VPCALL Zero16( float *dst,			const int count );
 	virtual void VPCALL Negate16( float *dst,		const int count ) = 0;
 	virtual void VPCALL Copy16( float *dst,			const float *src,		const int count ) = 0;
 	virtual void VPCALL Add16( float *dst,			const float *src1,		const float *src2,		const int count ) = 0;
@@ -208,5 +208,17 @@ public:
 
 // pointer to SIMD processor
 extern idSIMDProcessor *SIMDProcessor;
+
+ID_INLINE void VPCALL idSIMDProcessor::Memcpy( void *dst, const void *src, const int count ) {
+	memcpy( dst, src, count );
+}
+
+ID_INLINE void VPCALL idSIMDProcessor::Memset( void *dst, const int val, const int count ) {
+	memset( dst, val, count );
+}
+
+ID_INLINE void VPCALL idSIMDProcessor::Zero16( float *dst, const int count ) {
+	memset( dst, 0, count * sizeof( float ) );
+}
 
 #endif /* !__MATH_SIMD_H__ */

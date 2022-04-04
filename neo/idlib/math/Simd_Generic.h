@@ -85,10 +85,10 @@ public:
 	virtual void VPCALL ClampMin( float *dst,		const float *src,		const float min,		const int count );
 	virtual void VPCALL ClampMax( float *dst,		const float *src,		const float max,		const int count );
 
-	virtual void VPCALL Memcpy( void *dst,			const void *src,		const int count );
-	virtual void VPCALL Memset( void *dst,			const int val,			const int count );
+	static void VPCALL Memcpy( void *dst,			const void *src,		const int count );
+	static void VPCALL Memset( void *dst,			const int val,			const int count );
 
-	virtual void VPCALL Zero16( float *dst,			const int count );
+	static void VPCALL Zero16( float *dst,			const int count );
 	virtual void VPCALL Negate16( float *dst,		const int count );
 	virtual void VPCALL Copy16( float *dst,			const float *src,		const int count );
 	virtual void VPCALL Add16( float *dst,			const float *src1,		const float *src2,		const int count );

@@ -600,7 +600,7 @@ void VPCALL idSIMD_Generic::ClampMax( float *dst, const float *src, const float 
 idSIMD_Generic::Memcpy
 ================
 */
-void VPCALL idSIMD_Generic::Memcpy( void *dst, const void *src, const int count ) {
+ID_INLINE void VPCALL idSIMD_Generic::Memcpy( void *dst, const void *src, const int count ) {
 	memcpy( dst, src, count );
 }
 
@@ -609,7 +609,7 @@ void VPCALL idSIMD_Generic::Memcpy( void *dst, const void *src, const int count 
 idSIMD_Generic::Memset
 ================
 */
-void VPCALL idSIMD_Generic::Memset( void *dst, const int val, const int count ) {
+ID_INLINE void VPCALL idSIMD_Generic::Memset( void *dst, const int val, const int count ) {
 	memset( dst, val, count );
 }
 
@@ -618,7 +618,7 @@ void VPCALL idSIMD_Generic::Memset( void *dst, const int val, const int count ) 
 idSIMD_Generic::Zero16
 ============
 */
-void VPCALL idSIMD_Generic::Zero16( float *dst, const int count ) {
+ID_INLINE void VPCALL idSIMD_Generic::Zero16( float *dst, const int count ) {
 	memset( dst, 0, count * sizeof( float ) );
 }
 
