@@ -645,53 +645,70 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 	}
 
 	if ( !vLight->localInteractions && !vLight->globalInteractions &&
-		!vLight->globalShadows && !vLight->localShadows && !vLight->translucentInteractions ) {
+		!vLight->translucentInteractions ) {
 		return;
 	}
 
 	//RB_LogComment( "---------- RB_RenderViewLight 0x%p ----------\n", vLight );
 
-	// clear the stencil buffer if needed
-	if ( vLight->globalShadows || vLight->localShadows )
+	if ( r_shadows.GetBool() ) // Cowcat
 	{
-		backEnd.currentScissor = vLight->scissorRect;
-
-		if ( r_useScissor.GetBool() )
+		// clear the stencil buffer if needed
+		if ( vLight->globalShadows || vLight->localShadows )
 		{
-			qglScissor( backEnd.viewDef->viewport.x1 + backEnd.currentScissor.x1, 
-				backEnd.viewDef->viewport.y1 + backEnd.currentScissor.y1,
-				backEnd.currentScissor.x2 + 1 - backEnd.currentScissor.x1,
-				backEnd.currentScissor.y2 + 1 - backEnd.currentScissor.y1 );
+			backEnd.currentScissor = vLight->scissorRect;
+
+			if ( r_useScissor.GetBool() )
+			{
+				qglScissor( backEnd.viewDef->viewport.x1 + backEnd.currentScissor.x1, 
+					backEnd.viewDef->viewport.y1 + backEnd.currentScissor.y1,
+					backEnd.currentScissor.x2 + 1 - backEnd.currentScissor.x1,
+					backEnd.currentScissor.y2 + 1 - backEnd.currentScissor.y1 );
+			}
+
+			qglClear( GL_STENCIL_BUFFER_BIT );
 		}
 
-		qglClear( GL_STENCIL_BUFFER_BIT );
-	}
+		else
+		{
+			// no shadows, so no need to read or write the stencil buffer
+			// we might in theory want to use GL_ALWAYS instead of disabling
+			// completely, to satisfy the invarience rules
+			qglStencilFunc( GL_ALWAYS, 128, 255 );
+		}
 
+		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
+		RB_StencilShadowPass( vLight->globalShadows );
+		RB_CreateDrawInteractions( vLight->localInteractions );
+		RB_StencilShadowPass( vLight->localShadows );
+		RB_CreateDrawInteractions( vLight->globalInteractions );
+
+		if ( r_skipTranslucent.GetBool() ) {
+			return;
+		}
+
+		// disable stencil testing for translucent interactions, because
+		// the shadow isn't calculated at their point, and the shadow
+		// behind them may be depth fighting with a back side, so there
+		// isn't any reasonable thing to do
+		qglStencilFunc( GL_ALWAYS, 128, 255 );
+		backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
+		RB_CreateDrawInteractions( vLight->translucentInteractions );
+	}
+	
 	else
 	{
-		// no shadows, so no need to read or write the stencil buffer
-		// we might in theory want to use GL_ALWAYS instead of disabling
-		// completely, to satisfy the invarience rules
-		qglStencilFunc( GL_ALWAYS, 128, 255 );
+		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
+		RB_CreateDrawInteractions( vLight->localInteractions );
+		RB_CreateDrawInteractions( vLight->globalInteractions );
+
+		if ( r_skipTranslucent.GetBool() ) {
+			return;
+		}
+
+		backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
+		RB_CreateDrawInteractions( vLight->translucentInteractions );
 	}
-
-	backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
-	RB_StencilShadowPass( vLight->globalShadows );
-	RB_CreateDrawInteractions( vLight->localInteractions );
-	RB_StencilShadowPass( vLight->localShadows );
-	RB_CreateDrawInteractions( vLight->globalInteractions );
-
-	if ( r_skipTranslucent.GetBool() ) {
-		return;
-	}
-
-	// disable stencil testing for translucent interactions, because
-	// the shadow isn't calculated at their point, and the shadow
-	// behind them may be depth fighting with a back side, so there
-	// isn't any reasonable thing to do
-	qglStencilFunc( GL_ALWAYS, 128, 255 );
-	backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
-	RB_CreateDrawInteractions( vLight->translucentInteractions );
 }
 
 
@@ -704,8 +721,6 @@ void RB_ARB_DrawInteractions( void )
 {
 	if ( r_showTangentSpace.GetInteger() ) // Cowcat
 		return;
-
-	//qglEnable( GL_STENCIL_TEST );
 
 	for ( viewLight_t *vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
 		RB_RenderViewLight( vLight );

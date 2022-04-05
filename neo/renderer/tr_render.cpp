@@ -230,8 +230,7 @@ matrix will already have been loaded, and backEnd.currentSpace will
 be updated after the triangle function completes.
 ====================
 */
-void RB_RenderDrawSurfListWithFunction( drawSurf_t **drawSurfs, int numDrawSurfs,
-											  void (*triFunc_)( const drawSurf_t *) ) {
+void RB_RenderDrawSurfListWithFunction( drawSurf_t **drawSurfs, int numDrawSurfs, void (*triFunc_)( const drawSurf_t *) ) {
 	int				i;
 	const drawSurf_t		*drawSurf;
 
@@ -278,8 +277,7 @@ void RB_RenderDrawSurfListWithFunction( drawSurf_t **drawSurfs, int numDrawSurfs
 RB_RenderDrawSurfChainWithFunction
 ======================
 */
-void RB_RenderDrawSurfChainWithFunction( const drawSurf_t *drawSurfs,
-										void (*triFunc_)( const drawSurf_t *) ) {
+void RB_RenderDrawSurfChainWithFunction( const drawSurf_t *drawSurfs, void (*triFunc_)( const drawSurf_t *) ) {
 	const drawSurf_t		*drawSurf;
 
 	backEnd.currentSpace = NULL;
@@ -323,8 +321,7 @@ void RB_RenderDrawSurfChainWithFunction( const drawSurf_t *drawSurfs,
 RB_GetShaderTextureMatrix
 ======================
 */
-void RB_GetShaderTextureMatrix( const float *shaderRegisters,
-							   const textureStage_t *texture, float matrix[16] ) {
+void RB_GetShaderTextureMatrix( const float *shaderRegisters, const textureStage_t *texture, float matrix[16] ) {
 	matrix[0] = shaderRegisters[ texture->matrix[0][0] ];
 	matrix[4] = shaderRegisters[ texture->matrix[0][1] ];
 	matrix[8] = 0;
@@ -577,12 +574,23 @@ void RB_BeginDrawingView (void) {
 
 	// we don't have to clear the depth / stencil buffer for 2D rendering
 	if ( backEnd.viewDef->viewEntitys ) {
-		qglStencilMask( 0xff );
-		// some cards may have 7 bit stencil buffers, so don't assume this
-		// should be 128
-		qglClearStencil( 1<<(glConfig.stencilBits-1) );
-		qglClear( GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
-		qglEnable( GL_DEPTH_TEST );
+
+		if ( r_shadows.GetBool() ) // Cowcat
+		{
+			qglStencilMask( 0xff );
+			// some cards may have 7 bit stencil buffers, so don't assume this
+			// should be 128
+			qglClearStencil( 1<<(glConfig.stencilBits-1) );
+			qglClear( GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
+			qglEnable( GL_DEPTH_TEST );
+		}
+
+		else
+		{
+			qglClear( GL_DEPTH_BUFFER_BIT );
+			qglEnable( GL_DEPTH_TEST );
+		}
+
 	} else {
 		qglDisable( GL_DEPTH_TEST );
 		qglDisable( GL_STENCIL_TEST );
@@ -598,8 +606,7 @@ void RB_BeginDrawingView (void) {
 R_SetDrawInteractions
 ==================
 */
-void R_SetDrawInteraction( const shaderStage_t *surfaceStage, const float *surfaceRegs,
-						  idImage **image, idVec4 matrix[2], float color[4] ) {
+void R_SetDrawInteraction( const shaderStage_t *surfaceStage, const float *surfaceRegs, idImage **image, idVec4 matrix[2], float color[4] ) {
 	*image = surfaceStage->texture.image;
 	if ( surfaceStage->texture.hasMatrix ) {
 		matrix[0][0] = surfaceRegs[surfaceStage->texture.matrix[0][0]];
@@ -753,8 +760,8 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 		if ( lightStage->texture.hasMatrix ) {
 			//RB_GetShaderTextureMatrix( lightRegs, &lightStage->texture, backEnd.lightTextureMatrix );
 			//RB_BakeTextureMatrixIntoTexgen( reinterpret_cast<class idPlane *>(inter.lightProjection), backEnd.lightTextureMatrix );
-            float tmp[16];
-            RB_GetShaderTextureMatrix( lightRegs, &lightStage->texture, tmp );
+			float tmp[16];
+			RB_GetShaderTextureMatrix( lightRegs, &lightStage->texture, tmp );
 			RB_BakeTextureMatrixIntoTexgen( reinterpret_cast<class idPlane *>(inter.lightProjection), tmp );
 		}
 

@@ -551,8 +551,12 @@ void RB_STD_FillDepthBuffer( drawSurf_t **drawSurfs, int numDrawSurfs ) {
 	// Enable stencil test if we are going to be using it for shadows.
 	// If we didn't do this, it would be legal behavior to get z fighting
 	// from the ambient pass and the light passes.
-	qglEnable( GL_STENCIL_TEST );
-	qglStencilFunc( GL_ALWAYS, 1, 255 );
+
+	if ( r_shadows.GetBool() ) // Cowcat
+	{
+		qglEnable( GL_STENCIL_TEST );
+		qglStencilFunc( GL_ALWAYS, 1, 255 );
+	}
 
 	RB_RenderDrawSurfListWithFunction( drawSurfs, numDrawSurfs, RB_T_FillDepthBuffer );
 
@@ -1339,6 +1343,7 @@ static void RB_T_BlendLight( const drawSurf_t *surf ) {
 		idDrawVert	*ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
 		qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	} else if ( tri->shadowCache ) {
+	    //common->Printf( "Blendlight shadowcache\n");
 		shadowCache_t	*sc = (shadowCache_t *)vertexCache.Position( tri->shadowCache );
 		qglVertexPointer( 3, GL_FLOAT, sizeof( shadowCache_t ), sc->xyz.ToFloatPtr() );
 	}
