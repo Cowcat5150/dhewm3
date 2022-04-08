@@ -321,16 +321,37 @@ IDLIB = $(B)/idlib.a
 BASE = $(B)/base.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -lSDL2 -lopenal -lvorbisfile -lvorbis -logg -lpthread -ldll
+LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -Lneo/sys/morphos -lopenal -lSDL2 -lvorbisfile -lvorbis -logg -lpthread -ldll
 
 all: $(IDLIB) $(BASE) $(DOOM)  
+
+clean:
+	rm -rf buildmos
+
+.PHONY: all clean
+
+$(OBJBASE): $(BB)/.created
+$(OBJDOOM): $(BR)/.created
+$(OBJIDLIB): $(BID)/.created
+
+$(BB)/.created:
+	mkdir -p $(BB)
+	touch $@
+
+$(BR)/.created:
+	mkdir -p $(BR)
+	touch $@
+
+$(BID)/.created:
+	mkdir -p $(BID)
+	touch $@
 
 $(IDLIB): $(OBJIDLIB)
 	$(AR) r $(IDLIB) $(OBJIDLIB)
 	$(RANLIB) $@
 
 $(BASE): $(OBJBASE)
-	$(CXX) -o $@ $(OBJBASE) $(IDLIB) -noixemul -ldll
+	$(CXX) -o $@ $(OBJBASE) $(IDLIB) -noixemul -Lneo/sys/morphos -ldll
 	$(STRIP) $@
 
 $(DOOM): $(OBJDOOM)
