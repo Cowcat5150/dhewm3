@@ -283,9 +283,9 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 	*buffer = NULL;
 
 	// if we don't have any remaining unused headers, allocate some more
-	if ( freeStaticHeaders.next == &freeStaticHeaders ) // Cowcat notes: Huge lag here for MOS.
+	if ( freeStaticHeaders.next == &freeStaticHeaders ) // Cowcat notes: Huge lag here for MOS. ( Fixed for MOS 3.17 )
 	{
-		common->Printf( "-----Alloc more headers in. Size = %i\n", size );
+		common->Printf( "-----Alloc more headers in. Size = %i\n", size ); // not needed for other systems ( OS4? )
 
 		for ( int i = 0; i < EXPAND_HEADERS; i++ )
 		{
@@ -304,7 +304,7 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 		}
 
 		//common->Printf( "-----Alloc more headers out. Size = %i\n", block->size );
-		common->Printf( "-----Alloc more headers out\n");
+		common->Printf( "-----Alloc more headers out\n"); // same as above (but it did his job).
 	}
 
 	// try to find a matching block to replace so that we're not continually respecifying vbo data each frame
