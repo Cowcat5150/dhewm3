@@ -47,6 +47,11 @@ If you have questions concerning this license or the applicable additional terms
 
 static char path_argv[MAX_OSPATH];
 
+extern "C"
+{
+	int __stack = 4*1024*1024;
+}
+
 #define DEFAULT_PATH ""
 
 #if 0
