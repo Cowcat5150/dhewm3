@@ -590,7 +590,13 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 	// force a space calculation
 	backEnd.currentSpace = NULL;
 
-	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+	if ( backEnd.viewDef->numClipPlanes ) { // keep this here until TexGen is fixed.
+		GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+	}
+
+	else {
+		GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+	}
 
 	if ( !r_usedrawinteraction0.GetBool() )
 	{
