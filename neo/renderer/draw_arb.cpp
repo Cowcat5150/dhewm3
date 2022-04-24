@@ -285,7 +285,6 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	// set the vertex arrays, which may not all be enabled on a given pass
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
 	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
-	GL_SelectTexture( 0 );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
@@ -304,6 +303,22 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	if ( din->vertexColor == SVC_IGNORE )
 	{
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
+	}
+
+	else
+	{
+		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), (void *)&ac->color );
+		qglEnableClientState( GL_COLOR_ARRAY );
+
+		if ( din->vertexColor == SVC_INVERSE_MODULATE ) {
+			GL_TexEnv( GL_COMBINE_ARB );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_OPERAND0_RGB_ARB, GL_SRC_COLOR );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_OPERAND1_RGB_ARB, GL_ONE_MINUS_SRC_COLOR );
+			qglTexEnvi( GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1 );
+		}
 	}
 
 	// texture 1 will get the light projected texture
@@ -337,6 +352,12 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	globalImages->BindNull();
 
 	GL_SelectTexture( 0 );
+
+	if ( din->vertexColor != SVC_IGNORE )
+	{
+		qglDisableClientState( GL_COLOR_ARRAY );
+		GL_TexEnv( GL_MODULATE );
+	}
 }
 
 #endif
@@ -534,15 +555,11 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 	GL_SelectTexture( 0 );
 	din->diffuseImage->Bind();
 
-	//GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
-	//GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
-
 	if ( din->vertexColor == SVC_IGNORE )
 	{
 		qglColor4fv( din->diffuseColor.ToFloatPtr() );
 	}
 
-/*
 	else
 	{
 		qglColorPointer( 4, GL_UNSIGNED_BYTE, sizeof( idDrawVert ), (void *)&ac->color );
@@ -558,22 +575,18 @@ static void RB_ARB_DrawInteraction0( const drawInteraction_t *din )
 			qglTexEnvi( GL_TEXTURE_ENV, GL_RGB_SCALE_ARB, 1 );
 		}
 	}
-*/
 
 	RB_DrawElementsWithCounters( tri );
 
 	//GL_SelectTexture( 0 );
 
-/*
 	if ( din->vertexColor != SVC_IGNORE )
 	{
 		qglDisableClientState( GL_COLOR_ARRAY );
 		GL_TexEnv( GL_MODULATE );
 	}
-*/
 
 	globalImages->BindNull();
-	
 }
 
 /*
