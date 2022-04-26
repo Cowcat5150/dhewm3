@@ -39,6 +39,13 @@ If you have questions concerning this license or the applicable additional terms
 #include "gamesys/Event.h"
 #include "Game_local.h"
 
+#if defined(__MORPHOS__)
+#undef SetSignal
+#undef Signal
+#undef Disable
+#undef IsListEmpty
+#endif
+
 /*
 ===============================================================================
 

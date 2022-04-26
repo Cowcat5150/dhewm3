@@ -60,7 +60,7 @@ const float SUSPEND_ANGULAR_ACCELERATION	= 30.0f;
 const idVec6 vec6_lcp_epsilon				= idVec6( LCP_EPSILON, LCP_EPSILON, LCP_EPSILON,
 													 LCP_EPSILON, LCP_EPSILON, LCP_EPSILON );
 
-#define AF_TIMINGS
+//#define AF_TIMINGS // d3wasm - Cowcat
 
 #ifdef AF_TIMINGS
 static int lastTimerReset = 0;
@@ -6255,7 +6255,7 @@ bool idPhysics_AF::Evaluate( int timeStepMSec, int endTimeMSec ) {
 
 	// if the simulation is suspended because the figure is at rest
 	if ( current.atRest >= 0 || timeStep <= 0.0f ) {
-		DebugDraw();
+		//DebugDraw(); // d3wasm - Cowcat
 		return false;
 	}
 
@@ -6322,7 +6322,7 @@ bool idPhysics_AF::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	Evolve( timeStep );
 
 	// debug graphics
-	DebugDraw();
+	//DebugDraw(); // d3wasm - Cowcat
 
 	// clear external forces on all bodies
 	ClearExternalForce();
