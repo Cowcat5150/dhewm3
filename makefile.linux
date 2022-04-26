@@ -1,7 +1,8 @@
 B = buildlinux
 BID = $(B)/idlib
-BR  = $(B)/doom
 BB  = $(B)/base
+B3  = $(B)/d3xp
+BR  = $(B)/doom
 
 CXX = g++
 CC = gcc
@@ -18,12 +19,15 @@ CC_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-stri
 
 CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I/usr/include/SDL2 -I/usr/include/AL
 CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/game -I/usr/include/SDL2
+CXX_INCLUDES_D3XP = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/d3xp -I/usr/include/SDL2
 CXX_DEFINES = -D__DOOM_DLL__
 CXX_DEFINES_BASE = -DGAME_DLL -Dbase_EXPORTS
+CXX_DEFINES_D3XP = -DGAME_DLL -D_D3XP -DCTF -Dd3xp_EXPORTS
 
 DO_CC = $(CC) $(CC_FLAGS) $(C_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX = $(CXX) $(CXX_FLAGS) $(CXX_DEFINES) $(CXX_INCLUDES) -o $@ -c $<
 DO_CXX_B = $(CXX) $(CXX_FLAGS_BASE) $(CXX_DEFINES_BASE) $(CXX_INCLUDES_BASE) -o $@ -c $<
+DO_CXX_XP = $(CXX) $(CXX_FLAGS_BASE) $(CXX_DEFINES_D3XP) $(CXX_INCLUDES_D3XP) -o $@ -c $<
 
 
 OBJIDLIB = \
@@ -146,6 +150,79 @@ $(BB)/Physics_RigidBody.o \
 $(BB)/Physics_Static.o \
 $(BB)/Physics_StaticMulti.o \
 $(BB)/Push.o
+
+OBJD3XP = \
+$(B3)/AF.o \
+$(B3)/AFEntity.o \
+$(B3)/Actor.o \
+$(B3)/Camera.o \
+$(B3)/Entity.o \
+$(B3)/BrittleFracture.o \
+$(B3)/Fx.o \
+$(B3)/GameEdit.o \
+$(B3)/Game_local.o \
+$(B3)/Game_network.o \
+$(B3)/Item.o \
+$(B3)/IK.o \
+$(B3)/Light.o \
+$(B3)/Misc.o \
+$(B3)/Mover.o \
+$(B3)/Moveable.o \
+$(B3)/MultiplayerGame.o \
+$(B3)/Player.o \
+$(B3)/PlayerIcon.o \
+$(B3)/PlayerView.o \
+$(B3)/Projectile.o \
+$(B3)/Pvs.o \
+$(B3)/SecurityCamera.o \
+$(B3)/SmokeParticles.o \
+$(B3)/Sound.o \
+$(B3)/Target.o \
+$(B3)/Trigger.o \
+$(B3)/Weapon.o \
+$(B3)/WorldSpawn.o \
+$(B3)/AAS.o \
+$(B3)/AAS_debug.o \
+$(B3)/AAS_pathing.o \
+$(B3)/AAS_routing.o \
+$(B3)/AI.o \
+$(B3)/AI_events.o \
+$(B3)/AI_pathing.o \
+$(B3)/AI_Vagary.o \
+$(B3)/DebugGraph.o \
+$(B3)/Class.o \
+$(B3)/Event.o \
+$(B3)/SaveGame.o \
+$(B3)/SysCmds.o \
+$(B3)/SysCvar.o \
+$(B3)/TypeInfo.o \
+$(B3)/Anim.o \
+$(B3)/Anim_Blend.o \
+$(B3)/Anim_Import.o \
+$(B3)/Anim_Testmodel.o \
+$(B3)/Script_Compiler.o \
+$(B3)/Script_Interpreter.o \
+$(B3)/Script_Program.o \
+$(B3)/Script_Thread.o \
+$(B3)/Clip.o \
+$(B3)/Force.o \
+$(B3)/Force_Constant.o \
+$(B3)/Force_Drag.o \
+$(B3)/Force_Field.o \
+$(B3)/Force_Spring.o \
+$(B3)/Physics.o \
+$(B3)/Physics_AF.o \
+$(B3)/Physics_Actor.o \
+$(B3)/Physics_Base.o \
+$(B3)/Physics_Monster.o \
+$(B3)/Physics_Parametric.o \
+$(B3)/Physics_Player.o \
+$(B3)/Physics_RigidBody.o \
+$(B3)/Physics_Static.o \
+$(B3)/Physics_StaticMulti.o \
+$(B3)/Push.o \
+$(B3)/Grabber.o \
+$(B3)/Force_Grab.o
 
 OBJDOOM = \
 $(BR)/Cinematic.o \
@@ -317,11 +394,12 @@ $(BR)/edit_stub.o \
 
 IDLIB = $(B)/idlib.a
 BASE = $(B)/base.so
+D3XP = $(B)/d3xp.so
 DOOM = $(B)/doom3
 
 LIBS = $(IDLIB) -lopenal -lvorbisfile -lvorbis -logg -lz -lSDL2 -lpthread -ldl
 
-all: $(IDLIB) $(BASE) $(DOOM)
+all: $(IDLIB) $(BASE) $(D3XP) $(DOOM)
 
 $(IDLIB): $(OBJIDLIB)
 	$(AR) r $(IDLIB) $(OBJIDLIB)
@@ -329,6 +407,10 @@ $(IDLIB): $(OBJIDLIB)
 
 $(BASE): $(OBJBASE)
 	$(CXX) -shared -Wl,-soname,base.so -o $@ $(OBJBASE) $(IDLIB)
+	$(STRIP) $@
+
+$(D3XP): $(OBJD3XP)
+	$(CXX) -shared -Wl,-soname,base.so -o $@ $(OBJD3XP) $(IDLIB)
 	$(STRIP) $@
 
 $(DOOM): $(OBJDOOM)
@@ -554,6 +636,7 @@ $(BR)/usurface.o: neo/tools/compilers/dmap/usurface.cpp
 	$(DO_CXX)
 
 #AAS
+
 $(BR)/AASBuild.o: neo/tools/compilers/aas/AASBuild.cpp
 	$(DO_CXX)
 $(BR)/AASBuild_file.o: neo/tools/compilers/aas/AASBuild_file.cpp
@@ -591,8 +674,6 @@ $(BR)/roq.o: neo/tools/compilers/roqvq/roq.cpp
 	$(DO_CXX)
 $(BR)/roqParam.o: neo/tools/compilers/roqvq/roqParam.cpp
 	$(DO_CXX)
-
-
 $(BR)/renderbump.o: neo/tools/compilers/renderbump/renderbump.cpp
 	$(DO_CXX)
 
@@ -676,8 +757,6 @@ $(BR)/glimp.o: neo/sys/glimp.cpp
 	$(DO_CXX)
 $(BR)/edit_stub.o: neo/tools/edit_stub.cpp
 	$(DO_CXX)
-
-
 
 #IDLIB
 
@@ -918,4 +997,149 @@ $(BB)/Physics_StaticMulti.o: neo/game/physics/Physics_StaticMulti.cpp
 	$(DO_CXX_B)
 $(BB)/Push.o: neo/game/physics/Push.cpp
 	$(DO_CXX_B)
+
+# D3XP
+
+$(B3)/AF.o: neo/d3xp/AF.cpp
+	$(DO_CXX_XP)
+$(B3)/AFEntity.o: neo/d3xp/AFEntity.cpp
+	$(DO_CXX_XP)
+$(B3)/Actor.o: neo/d3xp/Actor.cpp
+	$(DO_CXX_XP)
+$(B3)/Camera.o: neo/d3xp/Camera.cpp
+	$(DO_CXX_XP)
+$(B3)/Entity.o: neo/d3xp/Entity.cpp
+	$(DO_CXX_XP)
+$(B3)/BrittleFracture.o: neo/d3xp/BrittleFracture.cpp
+	$(DO_CXX_XP)
+$(B3)/Fx.o: neo/d3xp/Fx.cpp
+	$(DO_CXX_XP)
+$(B3)/GameEdit.o: neo/d3xp/GameEdit.cpp
+	$(DO_CXX_XP)
+$(B3)/Game_local.o: neo/d3xp/Game_local.cpp
+	$(DO_CXX_XP)
+$(B3)/Game_network.o: neo/d3xp/Game_network.cpp
+	$(DO_CXX_XP)
+$(B3)/Item.o: neo/d3xp/Item.cpp
+	$(DO_CXX_XP)
+$(B3)/IK.o: neo/d3xp/IK.cpp
+	$(DO_CXX_XP)
+$(B3)/Light.o: neo/d3xp/Light.cpp
+	$(DO_CXX_XP)
+$(B3)/Misc.o: neo/d3xp/Misc.cpp
+	$(DO_CXX_XP)
+$(B3)/Mover.o: neo/d3xp/Mover.cpp
+	$(DO_CXX_XP)
+$(B3)/Moveable.o: neo/d3xp/Moveable.cpp
+	$(DO_CXX_XP)
+$(B3)/MultiplayerGame.o: neo/d3xp/MultiplayerGame.cpp
+	$(DO_CXX_XP)
+$(B3)/Player.o: neo/d3xp/Player.cpp
+	$(DO_CXX_XP)
+$(B3)/PlayerIcon.o: neo/d3xp/PlayerIcon.cpp
+	$(DO_CXX_XP)
+$(B3)/PlayerView.o: neo/d3xp/PlayerView.cpp
+	$(DO_CXX_XP)
+$(B3)/Projectile.o: neo/d3xp/Projectile.cpp
+	$(DO_CXX_XP)
+$(B3)/Pvs.o: neo/d3xp/Pvs.cpp
+	$(DO_CXX_XP)
+$(B3)/SecurityCamera.o: neo/d3xp/SecurityCamera.cpp
+	$(DO_CXX_XP)
+$(B3)/SmokeParticles.o: neo/d3xp/SmokeParticles.cpp
+	$(DO_CXX_XP)
+$(B3)/Sound.o: neo/d3xp/Sound.cpp
+	$(DO_CXX_XP)
+$(B3)/Target.o: neo/d3xp/Target.cpp
+	$(DO_CXX_XP)
+$(B3)/Trigger.o: neo/d3xp/Trigger.cpp
+	$(DO_CXX_XP)
+$(B3)/Weapon.o: neo/d3xp/Weapon.cpp
+	$(DO_CXX_XP)
+$(B3)/WorldSpawn.o: neo/d3xp/WorldSpawn.cpp
+	$(DO_CXX_XP)
+$(B3)/AAS.o: neo/d3xp/ai/AAS.cpp
+	$(DO_CXX_XP)
+$(B3)/AAS_debug.o: neo/d3xp/ai/AAS_debug.cpp
+	$(DO_CXX_XP)
+$(B3)/AAS_pathing.o: neo/d3xp/ai/AAS_pathing.cpp
+	$(DO_CXX_XP)
+$(B3)/AAS_routing.o: neo/d3xp/ai/AAS_routing.cpp
+	$(DO_CXX_XP)
+$(B3)/AI.o: neo/d3xp/ai/AI.cpp
+	$(DO_CXX_XP)
+$(B3)/AI_events.o: neo/d3xp/ai/AI_events.cpp
+	$(DO_CXX_XP)
+$(B3)/AI_pathing.o: neo/d3xp/ai/AI_pathing.cpp
+	$(DO_CXX_XP)
+$(B3)/AI_Vagary.o: neo/d3xp/ai/AI_Vagary.cpp
+	$(DO_CXX_XP)
+$(B3)/DebugGraph.o: neo/d3xp/gamesys/DebugGraph.cpp
+	$(DO_CXX_XP)
+$(B3)/Class.o: neo/d3xp/gamesys/Class.cpp
+	$(DO_CXX_XP)
+$(B3)/Event.o: neo/d3xp/gamesys/Event.cpp
+	$(DO_CXX_XP)
+$(B3)/SaveGame.o: neo/d3xp/gamesys/SaveGame.cpp
+	$(DO_CXX_XP)
+$(B3)/SysCmds.o: neo/d3xp/gamesys/SysCmds.cpp
+	$(DO_CXX_XP)
+$(B3)/SysCvar.o: neo/d3xp/gamesys/SysCvar.cpp
+	$(DO_CXX_XP)
+$(B3)/TypeInfo.o: neo/d3xp/gamesys/TypeInfo.cpp
+	$(DO_CXX_XP)
+$(B3)/Anim.o: neo/d3xp/anim/Anim.cpp
+	$(DO_CXX_XP)
+$(B3)/Anim_Blend.o: neo/d3xp/anim/Anim_Blend.cpp
+	$(DO_CXX_XP)
+$(B3)/Anim_Import.o: neo/d3xp/anim/Anim_Import.cpp
+	$(DO_CXX_XP)
+$(B3)/Anim_Testmodel.o: neo/d3xp/anim/Anim_Testmodel.cpp
+	$(DO_CXX_XP)
+$(B3)/Script_Compiler.o: neo/d3xp/script/Script_Compiler.cpp
+	$(DO_CXX_XP)
+$(B3)/Script_Interpreter.o: neo/d3xp/script/Script_Interpreter.cpp
+	$(DO_CXX_XP)
+$(B3)/Script_Program.o: neo/d3xp/script/Script_Program.cpp
+	$(DO_CXX_XP)
+$(B3)/Script_Thread.o: neo/d3xp/script/Script_Thread.cpp
+	$(DO_CXX_XP)
+$(B3)/Clip.o: neo/d3xp/physics/Clip.cpp
+	$(DO_CXX_XP)
+$(B3)/Force.o: neo/d3xp/physics/Force.cpp
+	$(DO_CXX_XP)
+$(B3)/Force_Constant.o: neo/d3xp/physics/Force_Constant.cpp
+	$(DO_CXX_XP)
+$(B3)/Force_Drag.o: neo/d3xp/physics/Force_Drag.cpp
+	$(DO_CXX_XP)
+$(B3)/Force_Field.o: neo/d3xp/physics/Force_Field.cpp
+	$(DO_CXX_XP)
+$(B3)/Force_Spring.o: neo/d3xp/physics/Force_Spring.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics.o: neo/d3xp/physics/Physics.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_AF.o: neo/d3xp/physics/Physics_AF.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Actor.o: neo/d3xp/physics/Physics_Actor.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Base.o: neo/d3xp/physics/Physics_Base.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Monster.o: neo/d3xp/physics/Physics_Monster.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Parametric.o: neo/d3xp/physics/Physics_Parametric.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Player.o: neo/d3xp/physics/Physics_Player.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_RigidBody.o: neo/d3xp/physics/Physics_RigidBody.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_Static.o: neo/d3xp/physics/Physics_Static.cpp
+	$(DO_CXX_XP)
+$(B3)/Physics_StaticMulti.o: neo/d3xp/physics/Physics_StaticMulti.cpp
+	$(DO_CXX_XP)
+$(B3)/Push.o: neo/d3xp/physics/Push.cpp
+	$(DO_CXX_XP)
+$(B3)/Grabber.o: neo/d3xp/Grabber.cpp
+	$(DO_CXX_XP)
+$(B3)/Force_Grab.o: neo/d3xp/physics/Force_Grab.cpp
+	$(DO_CXX_XP)
 
