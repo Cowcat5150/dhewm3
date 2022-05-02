@@ -414,6 +414,8 @@ idImage::Downsize
 helper function that takes the current width/height and might make them smaller
 ================
 */
+extern bool checkfonts; // Cowcat
+
 void idImage::GetDownsize( int &scaled_width, int &scaled_height ) const {
 	int size = 0;
 
@@ -433,8 +435,13 @@ void idImage::GetDownsize( int &scaled_width, int &scaled_height ) const {
 		if ( size == 0 ) {
 			size = 256;
 		}
+	} else if ( checkfonts ) { // Cowcat 
+	    size = globalImages->image_downSizeLimit.GetInteger();
+	    if ( size <= 256 ) { // Limit the downsize as less makes fonts blurry
+			size = 256;
+		}
 	}
-
+    
 	if ( size > 0 ) {
 		while ( scaled_width > size || scaled_height > size ) {
 			if ( scaled_width > 1 ) {
