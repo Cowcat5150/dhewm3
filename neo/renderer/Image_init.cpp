@@ -1497,7 +1497,7 @@ Finds or loads the given image, always returning a valid image pointer.
 Loading of the image may be deferred for dynamic loading.
 ==============
 */
-bool checkfonts = false; // Cowcat
+bool checkfonts; // Cowcat
 
 idImage	*idImageManager::ImageFromFile( const char *_name, textureFilter_t filter, bool allowDownSize,
 						 textureRepeat_t repeat, textureDepth_t depth, cubeFiles_t cubeMap ) {
@@ -1588,11 +1588,15 @@ idImage	*idImageManager::ImageFromFile( const char *_name, textureFilter_t filte
 		allowDownSize = false;
 	}
 
-	if ( name.Find( "fonts/") >= 0 ) { // Fixes blurr with really low downsizes (See Image_load/Getdownsize). - Cowcat 
+	// Fixes blurr with really low downsizes (See Image_load/Getdownsize). - Cowcat
+	checkfonts = false;
+    
+	if ( name.Find( "fonts/") >= 0 ) { 
 		allowDownSize = false;
 		checkfonts = true;
 	}
-
+	//
+    
 	image->allowDownSize = allowDownSize;
 	image->repeat = repeat;
 	image->depth = depth;
