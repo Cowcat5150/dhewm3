@@ -706,6 +706,14 @@ idScreenRect idInteraction::CalcInteractionScissorRectangle( const idFrustum &vi
 		return lightDef->viewLight->scissorRect;
 	}
 
+	//stgatilov: single-point frustum happens from full-zero model bounds
+	//which happens when model has no surfaces at all
+	if ( frustum.GetLeft() == 0.0 && frustum.GetUp() == 0.0 ) { // test Cowcat
+		//common->Printf( "scissorclear\n");
+		scissorRect.Clear();
+		return scissorRect;
+	}
+	
 	// calculate scissors for the portals through which the interaction is visible
 	if ( r_useInteractionScissors.GetInteger() > 1 ) {
 		areaNumRef_t *area;
