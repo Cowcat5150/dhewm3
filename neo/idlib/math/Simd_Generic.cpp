@@ -2257,6 +2257,22 @@ idSIMD_Generic::BlendJoints
 void VPCALL idSIMD_Generic::BlendJoints( idJointQuat *joints, const idJointQuat *blendJoints, const float lerp, const int *index, const int numJoints ) {
 	int i;
 
+	// (D3 BFG) - Cowcat
+	if( lerp <= 0.0f )
+	{
+		return;
+	}
+	else if( lerp >= 1.0f )
+	{
+		for( int i = 0; i < numJoints; i++ )
+		{
+			int j = index[i];
+			joints[j] = blendJoints[j];
+		}
+		return;
+	}
+	//
+    
 	for ( i = 0; i < numJoints; i++ ) {
 		int j = index[i];
 		joints[j].q.Slerp( joints[j].q, blendJoints[j].q, lerp );
@@ -2270,12 +2286,67 @@ idSIMD_Generic::ConvertJointQuatsToJointMats
 ============
 */
 void VPCALL idSIMD_Generic::ConvertJointQuatsToJointMats( idJointMat *jointMats, const idJointQuat *jointQuats, const int numJoints ) {
+
+	#if 0
+    
 	int i;
 
 	for ( i = 0; i < numJoints; i++ ) {
 		jointMats[i].SetRotation( jointQuats[i].q.ToMat3() );
 		jointMats[i].SetTranslation( jointQuats[i].t );
 	}
+	
+	#else
+	
+	for ( int i = 0; i < numJoints; i++ ) {
+
+		const float *q = jointQuats[i].q.ToFloatPtr();
+		float *m = jointMats[i].ToFloatPtr();
+
+		m[0*4+3] = q[4];
+		m[1*4+3] = q[5];
+		m[2*4+3] = q[6];
+
+		float x2 = q[0] + q[0];
+		float y2 = q[1] + q[1];
+		float z2 = q[2] + q[2];
+
+		{
+			float xx = q[0] * x2;
+			float yy = q[1] * y2;
+			float zz = q[2] * z2;
+
+			m[0*4+0] = 1.0f - yy - zz;
+			m[1*4+1] = 1.0f - xx - zz;
+			m[2*4+2] = 1.0f - xx - yy;
+		}
+
+		{
+			float yz = q[1] * z2;
+			float wx = q[3] * x2;
+
+			m[2*4+1] = yz - wx;
+			m[1*4+2] = yz + wx;
+		}
+
+		{
+			float xy = q[0] * y2;
+			float wz = q[3] * z2;
+
+			m[1*4+0] = xy - wz;
+			m[0*4+1] = xy + wz;
+		}
+
+		{
+			float xz = q[0] * z2;
+			float wy = q[3] * y2;
+
+			m[0*4+2] = xz - wy;
+			m[2*4+0] = xz + wy;
+		}
+	}
+	
+	#endif
 }
 
 /*
@@ -2283,12 +2354,100 @@ void VPCALL idSIMD_Generic::ConvertJointQuatsToJointMats( idJointMat *jointMats,
 idSIMD_Generic::ConvertJointMatsToJointQuats
 ============
 */
+
+#if defined (__MORPHOS__)
+
+inline float FastScalarInvSqrt( float f ) {
+    
+	float estimate;
+	const float kSmallestFloat = FLT_MIN;
+    
+	//Calculate a 5 bit starting estimate for the reciprocal sqrt
+	//estimate = __frsqrte ( f + kSmallestFloat );
+	asm ("frsqrte %0,%1\n" : "=f" (estimate) : "f" (f + kSmallestFloat)); // Cowcat
+
+	//if you require less precision, you may reduce the number of loop iterations.
+	// This will do 2 rounds of NR
+	estimate = estimate + 0.5f * estimate * ( 1.0f - f * estimate * estimate );
+	estimate = estimate + 0.5f * estimate * ( 1.0f - f * estimate * estimate );
+	return estimate;
+}
+#endif
+
 void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuats, const idJointMat *jointMats, const int numJoints ) {
+
+	//#if !defined(__MORPHOS__)
+	#if 1
+    
 	int i;
 
 	for ( i = 0; i < numJoints; i++ ) {
 		jointQuats[i] = jointMats[i].ToJointQuat();
 	}
+	
+	#else // future test for G5
+	
+	int index;
+
+	// Since we use very little of the data we have to pull in for the altivec version, we end up with
+	// a lot of wasted math. Rather than try to force it to use altivec, I wrote an optimized version
+	// of InvSqrt for the G5, and made it use that instead. With only this change, we get a little
+	// bigger than 50% speedup, which is not too shabby. Should really replace idMath::InvSqrt with
+	// my function so everyone can benefit on G5.
+
+	for ( index = 0; index < numJoints; index++ ) {
+
+		idJointQuat	jq;
+		float		trace;
+		float		s;
+		float		t;
+		int		i;
+		int		j;
+		int		k;
+
+		static int	next[3] = { 1, 2, 0 };
+
+		float *mat = (float*)( jointMats[index].ToFloatPtr() );
+		trace = mat[0 * 4 + 0] + mat[1 * 4 + 1] + mat[2 * 4 + 2];
+
+		if ( trace > 0.0f ) {
+
+			t = trace + 1.0f;
+			s = FastScalarInvSqrt( t ) * 0.5f;
+            
+			jq.q[3] = s * t;
+			jq.q[0] = ( mat[1 * 4 + 2] - mat[2 * 4 + 1] ) * s;
+			jq.q[1] = ( mat[2 * 4 + 0] - mat[0 * 4 + 2] ) * s;
+			jq.q[2] = ( mat[0 * 4 + 1] - mat[1 * 4 + 0] ) * s;
+
+		} else {
+
+			i = 0;
+			if ( mat[1 * 4 + 1] > mat[0 * 4 + 0] ) {
+				i = 1;
+			}
+			if ( mat[2 * 4 + 2] > mat[i * 4 + i] ) {
+				i = 2;
+			}
+			j = next[i];
+			k = next[j];
+
+			t = ( mat[i * 4 + i] - ( mat[j * 4 + j] + mat[k * 4 + k] ) ) + 1.0f;
+			s = FastScalarInvSqrt( t ) * 0.5f;
+            
+			jq.q[i] = s * t;
+			jq.q[3] = ( mat[j * 4 + k] - mat[k * 4 + j] ) * s;
+			jq.q[j] = ( mat[i * 4 + j] + mat[j * 4 + i] ) * s;
+			jq.q[k] = ( mat[i * 4 + k] + mat[k * 4 + i] ) * s;
+		}
+
+		jq.t[0] = mat[0 * 4 + 3];
+		jq.t[1] = mat[1 * 4 + 3];
+		jq.t[2] = mat[2 * 4 + 3];
+		jointQuats[index] = jq;
+	}
+
+	#endif
 }
 
 /*
