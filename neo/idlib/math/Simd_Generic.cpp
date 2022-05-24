@@ -2450,18 +2450,110 @@ void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuat
 	#endif
 }
 
+
+// From Simd_Altivec ( fixes for MORPHOS by Cowcat )
+
+#define UNALIGNED_STORE3( ADDR, V0, V1, V2 )	{		\
+	/* load up the values that are there now */			\
+	vector float ULStoreMacro1 = vec_ld( 0, ADDR );		\
+	vector float ULStoreMacro2 = vec_ld( 47, ADDR );	\
+	/* generate permute vector and mask	*/				\
+	vector unsigned char ULStoreMacroPerm = vec_sub( vec_lvsr( 15, ADDR ), (vector unsigned char)vec_splat_u8(1) ); \
+	vector unsigned int ULStoreMacroMask = vec_perm( (vector unsigned int)vec_splat_u32(0), (vector unsigned int)vec_splat_u32(-1), ULStoreMacroPerm ); \
+	/* right rotate input data	*/   \
+	V0 = vec_perm( V0, V0, ULStoreMacroPerm );	\
+	V1 = vec_perm( V1, V1, ULStoreMacroPerm );	\
+	V2 = vec_perm( V2, V2, ULStoreMacroPerm );	\
+	/* setup the output vectors		*/			\
+	vector float ULStoreVal1, ULStoreVal2, ULStoreVal3, ULStoreVal4;	\
+	ULStoreVal1 = vec_sel( ULStoreMacro1, V0, ULStoreMacroMask );	\
+	ULStoreVal2 = vec_sel( V0, V1, ULStoreMacroMask );	\
+	ULStoreVal3 = vec_sel( V1, V2, ULStoreMacroMask );	\
+	ULStoreVal4 = vec_sel( V2, ULStoreMacro2, ULStoreMacroMask );	\
+	/* store results	*/					\
+	vec_st( ULStoreVal1, 0, ADDR );			\
+	vec_st( ULStoreVal2, 15, ADDR );		\
+	vec_st( ULStoreVal3, 31, ADDR );		\
+	vec_st( ULStoreVal4, 47, ADDR ); }
+	
 /*
 ============
 idSIMD_Generic::TransformJoints
 ============
 */
 void VPCALL idSIMD_Generic::TransformJoints( idJointMat *jointMats, const int *parents, const int firstJoint, const int lastJoint ) {
+
+    #if 1
+    
 	int i;
 
 	for( i = firstJoint; i <= lastJoint; i++ ) {
 		assert( parents[i] < i );
 		jointMats[i] *= jointMats[parents[i]];
 	}
+	
+	#else // later
+	
+	// I don't think you can unroll this since the next iteration of the loop might depending on the previous iteration, depending
+	// on what the parents array looks like. This is true in the test code.
+		
+	for ( int i = firstJoint; i <= lastJoint; i++ ) {
+		assert( parents[i] < i );
+		float *jointPtr = jointMats[i].ToFloatPtr();
+		float *parentPtr = jointMats[parents[i]].ToFloatPtr();
+
+		vector unsigned char permVec = vec_add( vec_lvsl( -1, jointPtr ), (vector unsigned char)vec_splat_u8(1) );
+		vector unsigned char permVec2 = vec_add( vec_lvsl( -1, parentPtr ), (vector unsigned char)vec_splat_u8(1) );
+		vector float v0, v1, v2, v3, v4, v5, v6, v7;
+
+		// we need to load up 12 float elements that make up the Mat
+		v0 = vec_ld( 0, jointPtr );
+		v1 = vec_ld( 15, jointPtr );
+		v2 = vec_ld( 31, jointPtr );
+		v3 = vec_ld( 47, jointPtr );
+
+		// load parents
+		v4 = vec_ld( 0, parentPtr );
+		v5 = vec_ld( 15, parentPtr );
+		v6 = vec_ld( 31, parentPtr );
+		v7 = vec_ld( 47, parentPtr );
+
+		// permute into vectors
+		vector float vecJointMat1 = vec_perm( v0, v1, permVec );
+		vector float vecJointMat2 = vec_perm( v1, v2, permVec );
+		vector float vecJointMat3 = vec_perm( v2, v3, permVec );
+
+		vector float vecParentMat1 = vec_perm( v4, v5, permVec2 );
+		vector float vecParentMat2 = vec_perm( v5, v6, permVec2 );
+		vector float vecParentMat3 = vec_perm( v6, v7, permVec2 );
+		
+		vector float zero = (vector float)vec_splat_u32(0);
+		vector float C1, C2, C3;
+        
+		// matrix multiply
+		C1 = vec_madd( vecJointMat1, vec_splat( vecParentMat1, 0 ), zero ); // m(0 to 3) * a(0)
+		C2 = vec_madd( vecJointMat1, vec_splat( vecParentMat2, 0 ), zero ); // m(4 to 7) * a(4)
+		C3 = vec_madd( vecJointMat1, vec_splat( vecParentMat3, 0 ), zero ); // m(8 to 11) * a(8)
+
+		C1 = vec_madd( vecJointMat2, vec_splat( vecParentMat1, 1 ), C1 ); // add in m(4 to 7) * a(1)
+		C2 = vec_madd( vecJointMat2, vec_splat( vecParentMat2, 1 ), C2 ); // add in m(4 to 7) * a(5)
+		C3 = vec_madd( vecJointMat2, vec_splat( vecParentMat3, 1 ), C3 ); // add in m(4 to 7) * a(9)
+
+		C1 = vec_madd( vecJointMat3, vec_splat( vecParentMat1, 2 ), C1 );
+		C2 = vec_madd( vecJointMat3, vec_splat( vecParentMat2, 2 ), C2 );
+		C3 = vec_madd( vecJointMat3, vec_splat( vecParentMat3, 2 ), C3 );
+
+		// do the addition at the end
+		vector unsigned char permZeroAndLast = (vector unsigned char){0,1,2,3,4,5,6,7,8,9,10,11,28,29,30,31};
+		C1 = vec_add( C1, vec_perm( zero, vecParentMat1, permZeroAndLast ) );
+		C2 = vec_add( C2, vec_perm( zero, vecParentMat2, permZeroAndLast ) );
+		C3 = vec_add( C3, vec_perm( zero, vecParentMat3, permZeroAndLast ) );
+
+		// store results
+		UNALIGNED_STORE3( (float*) jointPtr, C1, C2, C3 );
+	}
+	
+	#endif
 }
 
 /*
@@ -2470,12 +2562,98 @@ idSIMD_Generic::UntransformJoints
 ============
 */
 void VPCALL idSIMD_Generic::UntransformJoints( idJointMat *jointMats, const int *parents, const int firstJoint, const int lastJoint ) {
+
+    #if 1
+    
 	int i;
 
 	for( i = lastJoint; i >= firstJoint; i-- ) {
 		assert( parents[i] < i );
 		jointMats[i] /= jointMats[parents[i]];
 	}
+	
+	#else // later
+	
+	// I don't think you can unroll this since the next iteration of the loop might depending on the previous iteration, depending
+	// on what the parents array looks like. This is true in the test code.
+	
+	for ( int i = lastJoint; i >= firstJoint; i-- ) {
+		assert( parents[i] < i );
+		float *jointPtr = jointMats[i].ToFloatPtr();
+		float *parentPtr = jointMats[parents[i]].ToFloatPtr();
+
+		vector unsigned char permVec = vec_add( vec_lvsl( -1, jointPtr ), (vector unsigned char)vec_splat_u8(1) );
+		vector unsigned char permVec2 = vec_add( vec_lvsl( -1, parentPtr ), (vector unsigned char)vec_splat_u8(1) );
+		vector float v0, v1, v2, v3, v4, v5, v6, v7;
+
+		// we need to load up 12 float elements that make up the Mat
+		v0 = vec_ld( 0, jointPtr );
+		v1 = vec_ld( 15, jointPtr );
+		v2 = vec_ld( 31, jointPtr );
+		v3 = vec_ld( 47, jointPtr );
+
+		// load parents
+		v4 = vec_ld( 0, parentPtr );
+		v5 = vec_ld( 15, parentPtr );
+		v6 = vec_ld( 31, parentPtr );
+		v7 = vec_ld( 47, parentPtr );
+
+		// permute into vectors
+		vector float vecJointMat1 = vec_perm( v0, v1, permVec );
+		vector float vecJointMat2 = vec_perm( v1, v2, permVec );
+		vector float vecJointMat3 = vec_perm( v2, v3, permVec );
+
+		vector float vecParentMat1 = vec_perm( v4, v5, permVec2 );
+		vector float vecParentMat2 = vec_perm( v5, v6, permVec2 );
+		vector float vecParentMat3 = vec_perm( v6, v7, permVec2 );
+
+		vector float zero = (vector float)vec_splat_u32(0);
+		vector float C1, C2, C3;
+        
+		// do subtraction at the beginning
+		vector unsigned char permZeroAndLast = (vector unsigned char){0,1,2,3,4,5,6,7,8,9,10,11,28,29,30,31};
+		vecJointMat1 = vec_sub( vecJointMat1, vec_perm( zero, vecParentMat1, permZeroAndLast ) );
+		vecJointMat2 = vec_sub( vecJointMat2, vec_perm( zero, vecParentMat2, permZeroAndLast ) );
+		vecJointMat3 = vec_sub( vecJointMat3, vec_perm( zero, vecParentMat3, permZeroAndLast ) );
+
+		// matrix multiply
+		C1 = vec_madd( vecJointMat1, vec_splat( vecParentMat1, 0 ), zero );
+		C2 = vec_madd( vecJointMat1, vec_splat( vecParentMat1, 1 ), zero );
+		C3 = vec_madd( vecJointMat1, vec_splat( vecParentMat1, 2 ), zero );
+
+		C1 = vec_madd( vecJointMat2, vec_splat( vecParentMat2, 0 ), C1 );
+		C2 = vec_madd( vecJointMat2, vec_splat( vecParentMat2, 1 ), C2 );
+		C3 = vec_madd( vecJointMat2, vec_splat( vecParentMat2, 2 ), C3 );
+
+		C1 = vec_madd( vecJointMat3, vec_splat( vecParentMat3, 0 ), C1 );
+		C2 = vec_madd( vecJointMat3, vec_splat( vecParentMat3, 1 ), C2 );
+		C3 = vec_madd( vecJointMat3, vec_splat( vecParentMat3, 2 ), C3 );
+
+		// store results back
+		vector unsigned char storePerm = vec_lvsr( 0, jointPtr );
+
+		// right rotate the input data
+		C1 = vec_perm( C1, C1, storePerm );
+		C2 = vec_perm( C2, C2, storePerm );
+		C3 = vec_perm( C3, C3, storePerm );
+
+		vec_ste( C1, 0, (float*) jointPtr );
+		vec_ste( C1, 4, (float*) jointPtr );
+		vec_ste( C1, 8, (float*) jointPtr );
+		vec_ste( C1, 12, (float*) jointPtr );
+
+		vec_ste( C2, 16, (float*) jointPtr );
+		vec_ste( C2, 20, (float*) jointPtr );
+		vec_ste( C2, 24, (float*) jointPtr );
+		vec_ste( C2, 28, (float*) jointPtr );
+
+		vec_ste( C3, 32, (float*) jointPtr );
+		vec_ste( C3, 36, (float*) jointPtr );
+		vec_ste( C3, 40, (float*) jointPtr );
+		vec_ste( C3, 44, (float*) jointPtr );
+	}
+
+#endif
 }
 
 /*
