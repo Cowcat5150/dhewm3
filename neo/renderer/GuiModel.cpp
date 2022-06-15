@@ -110,7 +110,7 @@ idGuiModel::ReadFromDemo
 ================
 */
 void idGuiModel::ReadFromDemo( idDemoFile *demo ) {
-	int		i, j;
+	int		i, j, k;
 
 	i = verts.Num();
 	demo->ReadInt( i );
@@ -132,11 +132,21 @@ void idGuiModel::ReadFromDemo( idDemoFile *demo ) {
 	demo->ReadInt( i );
 	indexes.SetNum( i, false );
 	for ( j = 0; j < i; j++ ) {
-        #if GL_INDEX_TYPE == GL_UNSIGNED_SHORT
-        demo->ReadShort(indexes[j] );
-        #else
+
+		#if 0
+
+		#if GL_INDEX_TYPE == GL_UNSIGNED_SHORT
+		demo->ReadShort(indexes[j] );
+		#else
 		demo->ReadInt(indexes[j] );
-        #endif
+		#endif
+
+		#else // fix from android port - Cowcat
+
+		demo->ReadInt(k);
+		indexes[j] = (glIndex_t)k;
+
+		#endif
 	}
 
 	i = surfaces.Num();
