@@ -325,9 +325,9 @@ void idSoundSystemLocal::Init() {
 	graph = NULL;
 
 	// DG: added these for CheckDeviceAndRecoverIfNeeded()
-    //#if !defined(__MORPHOS__)
+	//#if !defined(__MORPHOS__)
 	alcResetDeviceSOFT = NULL;
-    //#endif
+	//#endif
 	resetRetryCount = 0;
 	lastCheckTime = 0;
 
@@ -407,10 +407,10 @@ void idSoundSystemLocal::Init() {
 		bool hasAlcExtDisconnect = alcIsExtensionPresent( openalDevice, "ALC_EXT_disconnect" ) != AL_FALSE;
 		bool hasAlcSoftHrtf = alcIsExtensionPresent( openalDevice, "ALC_SOFT_HRTF" ) != AL_FALSE;
 		if ( hasAlcExtDisconnect && hasAlcSoftHrtf ) {
-            //#if !defined(__MORPHOS__)
+			//#if !defined(__MORPHOS__)
 			common->Printf( "OpenAL: found extensions for resetting disconnected devices\n" );
 			alcResetDeviceSOFT = (LPALCRESETDEVICESOFT)alcGetProcAddress( openalDevice, "alcResetDeviceSOFT" );
-            //#endif
+			//#endif
 		}
 
 		// try to obtain EFX extensions
@@ -610,7 +610,7 @@ idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded
 */
 bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 {
-    //#if !defined(__MORPHOS__) // Cowcat
+	//#if !defined(__MORPHOS__) // Cowcat
 
 	static const int maxRetries = 20;
 
@@ -656,7 +656,7 @@ bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 
 	return resetRetryCount == 0; // if it's 0, state on last check was ok
 
-    //#endif
+	//#endif
 }
 
 /*
@@ -797,7 +797,19 @@ int idSoundSystemLocal::AsyncUpdateWrite( int inTime ) {
 		return 0;
 	}
 
-	int sampleTime = inTime * 44.1f;
+	// inTime is in milliseconds and if running for long enough that overflows,
+	// when multiplying with 44.1 it overflows even sooner, so use int64 at first
+	// (and double because float doesn't have good precision at bigger numbers)
+	// and then manually truncate to regular int afterwards - this should at least
+	// prevent sampleTime becoming negative (as long as inTime is not)
+	long long int sampleTime64 = double( inTime ) * 44.1;
+
+	// furthermore, sampleTime should be divisible by 8
+	// (at least by 4 for handling 11kHz samples) so round to nearest multiple of 8
+	sampleTime64 = (sampleTime64 + 4) & ~(long long int)7;
+
+	const int sampleTime = sampleTime64 & INT_MAX;
+	
 	int numSpeakers = s_numberOfSpeakers.GetInteger();
 
 	// enable audio hardware caching
