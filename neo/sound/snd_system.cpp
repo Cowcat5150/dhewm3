@@ -325,9 +325,9 @@ void idSoundSystemLocal::Init() {
 	graph = NULL;
 
 	// DG: added these for CheckDeviceAndRecoverIfNeeded()
-    #if !defined(__MORPHOS__)
+    //#if !defined(__MORPHOS__)
 	alcResetDeviceSOFT = NULL;
-    #endif
+    //#endif
 	resetRetryCount = 0;
 	lastCheckTime = 0;
 
@@ -407,10 +407,10 @@ void idSoundSystemLocal::Init() {
 		bool hasAlcExtDisconnect = alcIsExtensionPresent( openalDevice, "ALC_EXT_disconnect" ) != AL_FALSE;
 		bool hasAlcSoftHrtf = alcIsExtensionPresent( openalDevice, "ALC_SOFT_HRTF" ) != AL_FALSE;
 		if ( hasAlcExtDisconnect && hasAlcSoftHrtf ) {
-             #if !defined(__MORPHOS__)
+            //#if !defined(__MORPHOS__)
 			common->Printf( "OpenAL: found extensions for resetting disconnected devices\n" );
 			alcResetDeviceSOFT = (LPALCRESETDEVICESOFT)alcGetProcAddress( openalDevice, "alcResetDeviceSOFT" );
-            #endif
+            //#endif
 		}
 
 		// try to obtain EFX extensions
@@ -610,7 +610,7 @@ idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded
 */
 bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 {
-    #if !defined(__MORPHOS__) // Cowcat
+    //#if !defined(__MORPHOS__) // Cowcat
 
 	static const int maxRetries = 20;
 
@@ -656,7 +656,7 @@ bool idSoundSystemLocal::CheckDeviceAndRecoverIfNeeded()
 
 	return resetRetryCount == 0; // if it's 0, state on last check was ok
 
-    #endif
+    //#endif
 }
 
 /*

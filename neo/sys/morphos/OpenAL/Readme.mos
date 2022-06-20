@@ -1,0 +1,7 @@
+openal-soft-1.20.1:
+
+23-Feb-2020 github build with BeWorld/BSzili SDL2 changes.
+SDL2 AUDIO_F32 fix/bypass for AHI by Cowcat.
+
+
+

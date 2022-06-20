@@ -44,9 +44,9 @@ If you have questions concerning this license or the applicable additional terms
 #include "sound/efxlib.h"
 #include "sound/sound.h"
 
-#if defined(__MORPHOS__)
-#include <AL/efx.h>
-#endif
+//#if defined(__MORPHOS__)
+//#include <AL/efx.h>
+//#endif
 
 // demo sound commands
 typedef enum {
@@ -758,9 +758,9 @@ public:
 	static int				EFXAvailable;
 
 	// DG: for CheckDeviceAndRecoverIfNeeded()
-    #if !defined(__MORPHOS__)
+    //#if !defined(__MORPHOS__)
 	LPALCRESETDEVICESOFT	alcResetDeviceSOFT; // needs ALC_SOFT_HRTF extension
-    #endif
+    //#endif
 
 	int						resetRetryCount;
 	unsigned int			lastCheckTime;
