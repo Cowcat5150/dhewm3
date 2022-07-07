@@ -35,6 +35,8 @@ Compared to the original _DOOM 3_, the changes of _dhewm 3_ worth mentioning are
 - A portable build system based on CMake
 - (Cross-)compilation with MinGW-w64
 
+See [Changelog.md](./Changelog.md) for a more complete changelog.
+
 
 # GENERAL NOTES
 
@@ -52,13 +54,7 @@ http://store.steampowered.com/app/9050/
 
 http://store.steampowered.com/app/9070/
 
-You can also buy Steam keys at the Humble Store:
-
-https://www.humblebundle.com/store/p/doom3_storefront
-
-https://www.humblebundle.com/store/p/doom3_resofevil_storefront
-
-Note that neither Steam nor the Humble Store offer the *Resurrection of Evil* addon
+Note that Steam does not offer the *Resurrection of Evil* addon
 for German customers (or at least people with German IP adresses).
 
 ## Compiling
@@ -68,22 +64,24 @@ The build system is based on CMake: http://cmake.org/
 Required libraries are not part of the tree. These are:
 
 - zlib
-- libjpeg (v8)
-- libogg
-- libvorbis
-- libvorbisfile (may be part of libvorbis)
 - OpenAL (OpenAL Soft required, Creative's and Apple's versions are made of fail)
 - SDL v1.2 or 2.0 (2.0 recommended)
 - libcurl (optional, required for server downloads)
+- Optionally, on non-Windows: libbacktrace (usually linked statically)
+  - sometimes (e.g. on debian-based distros like Ubuntu) it's part of libgcc (=> always available),
+    sometimes (e.g. Arch Linux, openSUSE) it's in a separate package
+  - If this is available, dhewm3 prints more useful backtraces if it crashes
 
 For UNIX-like systems, these libraries need to be installed (including the
 developer files). It is recommended to use the software management tools of
 your OS (apt, dnf, portage, BSD ports, [Homebrew for macOS](http://brew.sh), ...).
 
-For Windows, there are two options:
+For Windows, there are three options:
 
 - Use the provided binaries (recommended, see below)
 - Compile these libraries yourself
+- Use [vcpkg](https://vcpkg.io/) to install the dependencies
+    - Remember to set `CMAKE_TOOLCHAIN_FILE` as described in their [Getting Started Guide](https://vcpkg.io/en/getting-started.html)
 
 Create a distinct build folder outside of this source repository and issue
 the cmake command there, pointing it at the neo/ folder from this repository:
@@ -93,6 +91,10 @@ the cmake command there, pointing it at the neo/ folder from this repository:
 macOS users need to point CMake at OpenAL Soft (better solutions welcome):
 
 `cmake -DOPENAL_LIBRARY=/usr/local/opt/openal-soft/lib/libopenal.dylib -DOPENAL_INCLUDE_DIR=/usr/local/opt/openal-soft/include /path/to/repository/neo`
+
+Newer versions of Homebrew install openal-soft to another directory, so use this instead:
+
+`cmake -DOPENAL_LIBRARY="/opt/homebrew/opt/openal-soft/lib/libopenal.dylib" -DOPENAL_INCLUDE_DIR="/opt/homebrew/opt/openal-soft/include" /path/to/repo/neo`
 
 ## Using the provided Windows binaries
 
@@ -134,6 +136,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
 Then point CMake at your toolchain file:
 `cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/Toolchain.cmake -DDHEWM3LIBS=/path/to/dhewm3-libs/i686-w64-mingw32 /path/to/repository/neo`
+
+If you want to build for x86_64 aka AMD64 aka x64, replace all instances of `i686`
+in the toolchain file with `x86_64`.
 
 ## Back End Rendering of Stencil Shadows
 
@@ -285,6 +290,19 @@ This code is in the public domain; do with it what you wish.
 neo/idlib/hashing/CRC32.cpp
 
 Copyright (C) 1995-1998 Mark Adler
+
+## stb_image and stb_vorbis
+
+neo/renderer/stb_image.h
+neo/sound/stb_vorbis.h
+
+Used to decode JPEG and OGG Vorbis files.
+
+from https://github.com/nothings/stb/
+
+Copyright (c) 2017 Sean Barrett
+
+Released under MIT License and Unlicense (Public Domain)
 
 ## Brandelf utility
 

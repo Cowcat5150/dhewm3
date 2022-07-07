@@ -797,8 +797,9 @@ bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
 	bool consoleKey = false;
 	if(event->evType == SE_KEY)
 	{
-		if( event->evValue == Sys_GetConsoleKey( false ) || event->evValue == Sys_GetConsoleKey( true )
-		    || (event->evValue == K_ESCAPE && idKeyInput::IsDown( K_SHIFT )) ) // shift+esc should also open console
+		bool shiftPressed = idKeyInput::IsDown( K_SHIFT );
+		if( event->evValue == K_CONSOLE || event->evValue == Sys_GetConsoleKey( shiftPressed )
+		   || (event->evValue == K_ESCAPE && shiftPressed) ) // shift+esc should also open console
 		{
 			consoleKey = true;
 		}
@@ -825,7 +826,6 @@ bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
 		// a down event will toggle the destination lines
 		if ( keyCatching ) {
 			Close();
-			Sys_GrabMouseCursor( true );
 			cvarSystem->SetCVarBool( "ui_chat", false );
 		} else {
 			consoleField.Clear();
@@ -850,7 +850,7 @@ bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
 	// handle key and character events
 	if ( event->evType == SE_CHAR ) {
 		// never send the console key as a character
-		if ( event->evValue != Sys_GetConsoleKey( false ) && event->evValue != Sys_GetConsoleKey( true ) ) {
+		if ( event->evValue != Sys_GetConsoleKey( idKeyInput::IsDown( K_SHIFT ) ) ) {
 			consoleField.CharEvent( event->evValue );
 		}
 		return true;

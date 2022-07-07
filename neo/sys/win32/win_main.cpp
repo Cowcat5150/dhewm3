@@ -66,16 +66,8 @@ Win32Vars_t	win32;
 
 static HMODULE hOpenGL_DLL;
 
-typedef int  (WINAPI * PWGLCHOOSEPIXELFORMAT) (HDC, CONST PIXELFORMATDESCRIPTOR *);
-typedef int   (WINAPI * PWGLDESCRIBEPIXELFORMAT) (HDC, int, UINT, LPPIXELFORMATDESCRIPTOR);
-typedef int   (WINAPI * PWGLGETPIXELFORMAT)(HDC);
-typedef BOOL(WINAPI * PWGLSETPIXELFORMAT)(HDC, int, CONST PIXELFORMATDESCRIPTOR *);
 typedef BOOL(WINAPI * PWGLSWAPBUFFERS)(HDC);
 
-PWGLCHOOSEPIXELFORMAT	qwglChoosePixelFormat;
-PWGLDESCRIBEPIXELFORMAT	qwglDescribePixelFormat;
-PWGLGETPIXELFORMAT		qwglGetPixelFormat;
-PWGLSETPIXELFORMAT		qwglSetPixelFormat;
 PWGLSWAPBUFFERS			qwglSwapBuffers;
 
 typedef BOOL(WINAPI * PWGLCOPYCONTEXT)(HGLRC, HGLRC, UINT);
@@ -121,6 +113,9 @@ PWGLSWAPLAYERBUFFERS		qwglSwapLayerBuffers;
 
 #endif /* End stuff required for tools */
 
+static bool hadError = false;
+static char errorText[4096];
+
 /*
 =============
 Sys_Error
@@ -133,11 +128,28 @@ void Sys_Error( const char *error, ... ) {
 	char		text[4096];
 	MSG        msg;
 
+	if ( !Sys_IsMainThread() ) {
+		// to avoid deadlocks we mustn't call Conbuf_AppendText() etc if not in main thread!
+		va_start(argptr, error);
+		vsprintf(errorText, error, argptr);
+		va_end(argptr);
+
+		printf("%s", errorText);
+		OutputDebugString( errorText );
+
+		hadError = true;
+		return;
+	}
+
 	va_start( argptr, error );
 	vsprintf( text, error, argptr );
 	va_end( argptr);
 
-	printf("%s", text);
+	if ( !hadError ) {
+		// if we had an error in another thread, printf() and OutputDebugString() has already been called for this
+		printf( "%s", text );
+		OutputDebugString( text );
+	}
 
 	Conbuf_AppendText( text );
 	Conbuf_AppendText( "\n" );
@@ -191,13 +203,22 @@ void Sys_Quit( void ) {
 Sys_Printf
 ==============
 */
-#define MAXPRINTMSG 4096
+
+enum {
+	MAXPRINTMSG = 4096,
+	MAXNUMBUFFEREDLINES = 16
+};
+
+static char bufferedPrintfLines[MAXNUMBUFFEREDLINES][MAXPRINTMSG];
+static int curNumBufferedPrintfLines = 0;
+static CRITICAL_SECTION printfCritSect;
+
 void Sys_Printf( const char *fmt, ... ) {
 	char		msg[MAXPRINTMSG];
 
 	va_list argptr;
 	va_start(argptr, fmt);
-	idStr::vsnPrintf( msg, MAXPRINTMSG-1, fmt, argptr );
+	int len = idStr::vsnPrintf( msg, MAXPRINTMSG-1, fmt, argptr );
 	va_end(argptr);
 	msg[sizeof(msg)-1] = '\0';
 
@@ -207,7 +228,18 @@ void Sys_Printf( const char *fmt, ... ) {
 		OutputDebugString( msg );
 	}
 	if ( win32.win_outputEditString.GetBool() ) {
-		Conbuf_AppendText( msg );
+		if ( Sys_IsMainThread() ) {
+			Conbuf_AppendText( msg );
+		} else {
+			EnterCriticalSection( &printfCritSect );
+			int idx = curNumBufferedPrintfLines++;
+			if ( idx < MAXNUMBUFFEREDLINES ) {
+				if ( len >= MAXPRINTMSG )
+					len = MAXPRINTMSG - 1;
+				memcpy( bufferedPrintfLines[idx], msg, len + 1 );
+			}
+			LeaveCriticalSection( &printfCritSect );
+		}
 	}
 }
 
@@ -345,7 +377,7 @@ static int WPath2A(char *dst, size_t size, const WCHAR *src) {
 /*
 ==============
 Returns "My Documents"/My Games/dhewm3 directory (or equivalent - "CSIDL_PERSONAL").
-To be used with Sys_DefaultSavePath(), so savegames, screenshots etc will be
+To be used with Sys_GetPath(PATH_SAVE), so savegames, screenshots etc will be
 saved to the users files instead of systemwide.
 
 Based on (with kind permission) Yamagi Quake II's Sys_GetHomeDir()
@@ -354,7 +386,7 @@ Returns the number of characters written to dst
 ==============
  */
 extern "C" { // DG: I need this in SDL_win32_main.c
-	int Sys_GetHomeDir(char *dst, size_t size)
+	int Win_GetHomeDir(char *dst, size_t size)
 	{
 		int len;
 		WCHAR profile[MAX_OSPATH];
@@ -449,7 +481,7 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 
 	case PATH_CONFIG:
 	case PATH_SAVE:
-		if (Sys_GetHomeDir(buf, sizeof(buf)) < 1) {
+		if (Win_GetHomeDir(buf, sizeof(buf)) < 1) {
 			Sys_Error("ERROR: Couldn't get dir to home path");
 			return false;
 		}
@@ -538,6 +570,10 @@ char *Sys_GetClipboardData( void ) {
 	return data;
 }
 
+void Sys_FreeClipboardData( char* data ) {
+	Mem_Free( data );
+}
+
 /*
 ================
 Sys_SetClipboardData
@@ -600,6 +636,33 @@ uintptr_t Sys_DLL_Load( const char *dllName ) {
 			Sys_DLL_Unload( (uintptr_t)libHandle );
 			return 0;
 		}
+	} else {
+		DWORD e = GetLastError();
+		LPVOID msgBuf = NULL;
+
+		FormatMessage(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL,
+			e,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&msgBuf,
+			0, NULL);
+
+		idStr errorStr = va( "[%i (0x%X)]\t%s", e, e, msgBuf );
+
+		// common, skipped.
+		if ( e == 0x7E ) // [126 (0x7E)] The specified module could not be found.
+			errorStr = "";
+		// probably going to be common. Lets try to be less cryptic.
+		else if ( e == 0xC1 ) // [193 (0xC1)] is not a valid Win32 application.
+			errorStr = va( "[%i (0x%X)]\t%s", e, e, "probably the DLL is of the wrong architecture, like x64 instead of x86" );
+
+		if ( errorStr.Length() )
+			common->Warning( "LoadLibrary(%s) Failed ! %s", dllName, errorStr.c_str() );
+
+		::LocalFree( msgBuf );
 	}
 	return (uintptr_t)libHandle;
 }
@@ -610,7 +673,30 @@ Sys_DLL_GetProcAddress
 =====================
 */
 void *Sys_DLL_GetProcAddress( uintptr_t dllHandle, const char *procName ) {
-	return (void *)GetProcAddress( (HINSTANCE)dllHandle, procName );
+	void * adr = (void*)GetProcAddress((HINSTANCE)dllHandle, procName);
+	if (!adr)
+	{
+		DWORD e = GetLastError();
+		LPVOID msgBuf = NULL;
+
+		FormatMessage(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL,
+			e,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&msgBuf,
+			0, NULL);
+
+		idStr errorStr = va("[%i (0x%X)]\t%s", e, e, msgBuf);
+
+		if (errorStr.Length())
+			common->Warning("GetProcAddress( %i %s) Failed ! %s", dllHandle, procName, errorStr.c_str());
+
+		::LocalFree(msgBuf);
+	}
+	return adr;
 }
 
 /*
@@ -662,6 +748,11 @@ void Sys_Init( void ) {
 #if 0
 	cmdSystem->AddCommand( "setAsyncSound", Sys_SetAsyncSound_f, CMD_FL_SYSTEM, "set the async sound option" );
 #endif
+	{
+		idStr savepath;
+		Sys_GetPath( PATH_SAVE, savepath );
+		common->Printf( "Logging console output to %s/dhewm3log.txt\n", savepath.c_str() );
+	}
 
 	//
 	// Windows version
@@ -704,10 +795,6 @@ void Sys_Shutdown( void ) {
 	qwglSwapLayerBuffers = NULL;
 	qwglUseFontBitmaps = NULL;
 	qwglUseFontOutlines = NULL;
-	qwglChoosePixelFormat = NULL;
-	qwglDescribePixelFormat = NULL;
-	qwglGetPixelFormat = NULL;
-	qwglSetPixelFormat = NULL;
 	qwglSwapBuffers = NULL;
 #endif // ID_ALLOW_TOOLS
 
@@ -732,7 +819,74 @@ void Win_Frame( void ) {
 		}
 		win32.win_viewlog.ClearModified();
 	}
+
+	if ( curNumBufferedPrintfLines > 0 ) {
+		// if Sys_Printf() had been called in another thread, add those lines to the windows console now
+		EnterCriticalSection( &printfCritSect );
+		int n = Min( curNumBufferedPrintfLines, (int)MAXNUMBUFFEREDLINES );
+		for ( int i = 0; i < n; ++i ) {
+			Conbuf_AppendText( bufferedPrintfLines[i] );
+		}
+		curNumBufferedPrintfLines = 0;
+		LeaveCriticalSection( &printfCritSect );
+	}
+
+	if ( hadError ) {
+		// if Sys_Error() had been called in another thread, handle it now
+		Sys_Error( "%s", errorText );
+	}
 }
+
+// the MFC tools use Win_GetWindowScalingFactor() for High-DPI support
+#ifdef ID_ALLOW_TOOLS
+
+typedef enum D3_MONITOR_DPI_TYPE {
+	D3_MDT_EFFECTIVE_DPI = 0,
+	D3_MDT_ANGULAR_DPI = 1,
+	D3_MDT_RAW_DPI = 2,
+	D3_MDT_DEFAULT = D3_MDT_EFFECTIVE_DPI
+} D3_MONITOR_DPI_TYPE;
+
+// https://docs.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-getdpiformonitor
+// GetDpiForMonitor() - Win8.1+, shellscalingapi.h, Shcore.dll
+static HRESULT (STDAPICALLTYPE *D3_GetDpiForMonitor)(HMONITOR hmonitor, D3_MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY) = NULL;
+
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getdpiforwindow
+// GetDpiForWindow() - Win10 1607+, winuser.h/Windows.h, User32.dll
+static UINT(WINAPI *D3_GetDpiForWindow)(HWND hwnd) = NULL;
+
+float Win_GetWindowScalingFactor(HWND window)
+{
+	// the best way - supported by Win10 1607 and newer
+	if ( D3_GetDpiForWindow != NULL ) {
+		UINT dpi = D3_GetDpiForWindow(window);
+		return static_cast<float>(dpi) / 96.0f;
+	}
+
+	// probably second best, supported by Win8.1 and newer
+	if ( D3_GetDpiForMonitor != NULL ) {
+		HMONITOR monitor = MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY);
+		UINT dpiX = 96, dpiY;
+		D3_GetDpiForMonitor(monitor, D3_MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+		return static_cast<float>(dpiX) / 96.0f;
+	}
+
+	// on older versions of windows, DPI was system-wide (not per monitor)
+	// and changing DPI required logging out and in again (AFAIK), so we only need to get it once
+	static float scaling_factor = -1.0f;
+	if ( scaling_factor == -1.0f ) {
+		HDC hdc = GetDC(window);
+		if (hdc == NULL) {
+			return 1.0f;
+		}
+		// "Number of pixels per logical inch along the screen width. In a system with multiple display monitors, this value is the same for all monitors."
+		int ppi = GetDeviceCaps(hdc, LOGPIXELSX);
+		scaling_factor = static_cast<float>(ppi) / 96.0f;
+	}
+	return scaling_factor;
+}
+
+#endif // ID_ALLOW_TOOLS
 
 // code that tells windows we're High DPI aware so it doesn't scale our windows
 // taken from Yamagi Quake II
@@ -741,7 +895,7 @@ typedef enum D3_PROCESS_DPI_AWARENESS {
 	D3_PROCESS_DPI_UNAWARE = 0,
 	D3_PROCESS_SYSTEM_DPI_AWARE = 1,
 	D3_PROCESS_PER_MONITOR_DPI_AWARE = 2
-} YQ2_PROCESS_DPI_AWARENESS;
+} D3_PROCESS_DPI_AWARENESS;
 
 static void setHighDPIMode(void)
 {
@@ -751,7 +905,6 @@ static void setHighDPIMode(void)
 	/* Win8.1 and later */
 	HRESULT(WINAPI *SetProcessDpiAwareness)(D3_PROCESS_DPI_AWARENESS dpiAwareness) = NULL;
 
-
 	HINSTANCE userDLL = LoadLibrary("USER32.DLL");
 
 	if (userDLL)
@@ -759,15 +912,13 @@ static void setHighDPIMode(void)
 		SetProcessDPIAware = (BOOL(WINAPI *)(void)) GetProcAddress(userDLL, "SetProcessDPIAware");
 	}
 
-
 	HINSTANCE shcoreDLL = LoadLibrary("SHCORE.DLL");
 
 	if (shcoreDLL)
 	{
-		SetProcessDpiAwareness = (HRESULT(WINAPI *)(YQ2_PROCESS_DPI_AWARENESS))
+		SetProcessDpiAwareness = (HRESULT(WINAPI *)(D3_PROCESS_DPI_AWARENESS))
 									GetProcAddress(shcoreDLL, "SetProcessDpiAwareness");
 	}
-
 
 	if (SetProcessDpiAwareness) {
 		SetProcessDpiAwareness(D3_PROCESS_PER_MONITOR_DPI_AWARE);
@@ -775,6 +926,16 @@ static void setHighDPIMode(void)
 	else if (SetProcessDPIAware) {
 		SetProcessDPIAware();
 	}
+
+#ifdef ID_ALLOW_TOOLS // also init function pointers for Win_GetWindowScalingFactor() here
+	if (userDLL) {
+		D3_GetDpiForWindow = (UINT(WINAPI *)(HWND))GetProcAddress(userDLL, "GetDpiForWindow");
+	}
+	if (shcoreDLL) {
+		D3_GetDpiForMonitor = (HRESULT (STDAPICALLTYPE *)(HMONITOR, D3_MONITOR_DPI_TYPE, UINT *, UINT *))
+		                          GetProcAddress(shcoreDLL, "GetDpiForMonitor");
+	}
+#endif // ID_ALLOW_TOOLS
 }
 
 #ifdef ID_ALLOW_TOOLS
@@ -817,11 +978,26 @@ static void loadWGLpointers() {
 
 
 	// These by default exist in windows
-	qwglChoosePixelFormat = ChoosePixelFormat;
-	qwglDescribePixelFormat = DescribePixelFormat;
-	qwglGetPixelFormat = GetPixelFormat;
-	qwglSetPixelFormat = SetPixelFormat;
 	qwglSwapBuffers = SwapBuffers;
+}
+
+// calls wglChoosePixelFormatARB() or ChoosePixelFormat() matching the main window from SDL
+int Win_ChoosePixelFormat(HDC hdc)
+{
+	if (win32.wglChoosePixelFormatARB != NULL && win32.piAttribIList != NULL) {
+		int formats[4];
+		UINT numFormats = 0;
+		if (win32.wglChoosePixelFormatARB(hdc, win32.piAttribIList, NULL, 4, formats, &numFormats) && numFormats > 0) {
+			return formats[0];
+		}
+		static bool haveWarned = false;
+		if(!haveWarned) {
+			common->Warning("wglChoosePixelFormatARB() failed, falling back to ChoosePixelFormat()!\n");
+			haveWarned = true;
+		}
+	}
+	// fallback to normal ChoosePixelFormats() - doesn't support MSAA!
+	return ChoosePixelFormat(hdc, &win32.pfd);
 }
 #endif
 
@@ -831,7 +1007,19 @@ WinMain
 ==================
 */
 int main(int argc, char *argv[]) {
+	// SDL_win32_main.c creates the dhewm3log.txt and redirects stdout into it
+	// so here we can log its (approx.) creation time before anything else is logged:
+	{
+		time_t tt = time(NULL);
+		const struct tm* tms = localtime(&tt);
+		char timeStr[64] = {};
+		strftime(timeStr, sizeof(timeStr), "%F %H:%M:%S", tms);
+		printf("Opened this log at %s\n", timeStr);
+	}
+
 	const HCURSOR hcurSave = ::SetCursor( LoadCursor( 0, IDC_WAIT ) );
+
+	InitializeCriticalSection( &printfCritSect );
 
 #ifdef ID_DEDICATED
 	MSG msg;
@@ -881,7 +1069,10 @@ int main(int argc, char *argv[]) {
 
 	// Launch the script debugger
 	if ( strstr( GetCommandLine(), "+debugger" ) ) {
-		// DebuggerClientInit( lpCmdLine );
+
+#ifdef ID_ALLOW_TOOLS
+		DebuggerClientInit(GetCommandLine());
+#endif
 		return 0;
 	}
 
@@ -1002,6 +1193,7 @@ void idSysLocal::StartProcess( const char *exePath, bool doexit ) {
 	si.cb = sizeof(si);
 
 	strncpy( szPathOrig, exePath, _MAX_PATH );
+	szPathOrig[_MAX_PATH-1] = 0;
 
 	if( !CreateProcess( NULL, szPathOrig, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi ) ) {
 		common->Error( "Could not start process: '%s' ", szPathOrig );

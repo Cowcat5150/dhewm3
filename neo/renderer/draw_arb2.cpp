@@ -98,6 +98,15 @@ void	RB_ARB2_DrawInteraction( const drawInteraction_t *din ) {
 	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 0, din->diffuseColor.ToFloatPtr() );
 	qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 1, din->specularColor.ToFloatPtr() );
 
+	// DG: brightness and gamma in shader as program.env[4]
+	if ( r_gammaInShader.GetBool() ) {
+		// program.env[4].xyz are all r_brightness, program.env[4].w is 1.0/r_gamma
+		float parm[4];
+		parm[0] = parm[1] = parm[2] = r_brightness.GetFloat();
+		parm[3] = 1.0/r_gamma.GetFloat(); // 1.0/gamma so the shader doesn't have to do this calculation
+		qglProgramEnvParameter4fvARB( GL_FRAGMENT_PROGRAM_ARB, 4, parm );
+	}
+
 	// set the textures
 
 	// texture 1 will be the per-surface bump map
@@ -344,6 +353,41 @@ static progDef_t	progs[MAX_GLPROGS] = {
 R_LoadARBProgram
 =================
 */
+
+static char* findLineThatStartsWith( char* text, const char* findMe ) {
+	char* res = strstr( text, findMe );
+	while ( res != NULL ) {
+		// skip whitespace before match, if any
+		char* cur = res;
+		if ( cur > text ) {
+			--cur;
+		}
+		while ( cur > text && ( *cur == ' ' || *cur == '\t' ) ) {
+			--cur;
+		}
+		// now we should be at a newline (or at the beginning)
+		if ( cur == text ) {
+			return cur;
+		}
+		if ( *cur == '\n' || *cur == '\r' ) {
+			return cur+1;
+		}
+		// otherwise maybe we're in commented out text or whatever, search on
+		res = strstr( res+1, findMe );
+	}
+	return NULL;
+}
+
+static ID_INLINE bool isARBidentifierChar( int c ) {
+	// according to chapter 3.11.2 in ARB_fragment_program.txt identifiers can only
+	// contain these chars (first char mustn't be a number, but that doesn't matter here)
+	// NOTE: isalnum() or isalpha() apparently doesn't work, as it also matches spaces (?!)
+	return  c == '$' || c == '_'
+	      || (c >= '0' && c <= '9')
+	      || (c >= 'A' && c <= 'Z')
+	      || (c >= 'a' && c <= 'z');
+}
+
 void R_LoadARBProgram( int progIndex ) {
 	int		ofs;
 	int		err;
@@ -409,6 +453,119 @@ void R_LoadARBProgram( int progIndex ) {
 	}
 	end[3] = 0;
 
+	// DG: hack gamma correction into shader
+	if ( r_gammaInShader.GetBool() && progs[progIndex].target == GL_FRAGMENT_PROGRAM_ARB ) {
+
+		// note that strlen("dhewm3tmpres") == strlen("result.color")
+		const char* tmpres = "TEMP dhewm3tmpres; # injected by dhewm3 for gamma correction\n";
+
+		// Note: program.env[4].xyz = r_brightness; program.env[4].w = 1.0/r_gamma
+		// outColor.rgb = pow(dhewm3tmpres.rgb*r_brightness, vec3(1.0/r_gamma))
+		// outColor.a = dhewm3tmpres.a;
+		const char* extraLines =
+			"# gamma correction in shader, injected by dhewm3 \n"
+			// MUL_SAT clamps the result to [0, 1] - it must not be negative because
+			// POW might not work with a negative base (it looks wrong with intel's Linux driver)
+			// and clamping values >1 to 1 is ok because when writing to result.color
+			// it's clamped anyway and pow(base, exp) is always >= 1 for base >= 1
+			"MUL_SAT dhewm3tmpres.xyz, program.env[4], dhewm3tmpres;\n" // first multiply with brightness
+			"POW result.color.x, dhewm3tmpres.x, program.env[4].w;\n" // then do pow(dhewm3tmpres.xyz, vec3(1/gamma))
+			"POW result.color.y, dhewm3tmpres.y, program.env[4].w;\n" // (apparently POW only supports scalars, not whole vectors)
+			"POW result.color.z, dhewm3tmpres.z, program.env[4].w;\n"
+			"MOV result.color.w, dhewm3tmpres.w;\n" // alpha remains unmodified
+			"\nEND\n\n"; // we add this block right at the end, replacing the original "END" string
+
+		int fullLen = strlen( start ) + strlen( tmpres ) + strlen( extraLines );
+		char* outStr = (char*)_alloca( fullLen + 1 );
+
+		// add tmpres right after OPTION line (if any)
+		char* insertPos = findLineThatStartsWith( start, "OPTION" );
+		if ( insertPos == NULL ) {
+			// no OPTION? then just put it after the first line (usually sth like "!!ARBfp1.0\n")
+			insertPos = start;
+		}
+		// but we want the position *after* that line
+		while( *insertPos != '\0' && *insertPos != '\n' && *insertPos != '\r' ) {
+			++insertPos;
+		}
+		// skip  the newline character(s) as well
+		while( *insertPos == '\n' || *insertPos == '\r' ) {
+			++insertPos;
+		}
+
+		// copy text up to insertPos
+		int curLen = insertPos-start;
+		memcpy( outStr, start, curLen );
+		// copy tmpres ("TEMP dhewm3tmpres; # ..")
+		memcpy( outStr+curLen, tmpres, strlen( tmpres ) );
+		curLen += strlen( tmpres );
+		// copy remaining original shader up to (excluding) "END"
+		int remLen = end - insertPos;
+		memcpy( outStr+curLen, insertPos, remLen );
+		curLen += remLen;
+
+		outStr[curLen] = '\0'; // make sure it's NULL-terminated so normal string functions work
+
+		// replace all existing occurrences of "result.color" with "dhewm3tmpres"
+		for( char* resCol = strstr( outStr, "result.color" );
+		     resCol != NULL; resCol = strstr( resCol+13, "result.color" ) ) {
+			memcpy( resCol, "dhewm3tmpres", 12 ); // both strings have the same length.
+
+			// if this was part of "OUTPUT bla = result.color;", replace
+			// "OUTPUT bla" with "ALIAS  bla" (so it becomes "ALIAS  bla = dhewm3tmpres;")
+			{
+				char* s = resCol - 1;
+				// first skip whitespace before "result.color"
+				while( s > outStr && (*s == ' ' || *s == '\t') ) {
+					--s;
+				}
+				// if there's no '=' before result.color, this line can't be affected
+				if ( *s != '=' || s <= outStr + 8 ) {
+					continue; // go on with next "result.color" in the for-loop
+				}
+				--s; // we were on '=', so go to the char before and it's time to skip whitespace again
+				while( s > outStr && ( *s == ' ' || *s == '\t' ) ) {
+					--s;
+				}
+				// now we should be at the end of "bla" (or however the variable/alias is called)
+				if ( s <= outStr+7 || !isARBidentifierChar( *s ) ) {
+					continue;
+				}
+				--s;
+				// skip all the remaining chars that are legal in identifiers
+				while( s > outStr && isARBidentifierChar( *s ) ) {
+					--s;
+				}
+				// there should be at least one space/tab between "OUTPUT" and "bla"
+				if ( s <= outStr + 6 || ( *s != ' ' && *s != '\t' ) ) {
+					continue;
+				}
+				--s;
+				// skip remaining whitespace (if any)
+				while( s > outStr && ( *s == ' ' || *s == '\t' ) ) {
+					--s;
+				}
+				// now we should be at "OUTPUT" (specifically at its last 'T'),
+				// if this is indeed such a case
+				if ( s <= outStr + 5 || *s != 'T' ) {
+					continue;
+				}
+				s -= 5; // skip to start of "OUTPUT", if this is indeed "OUTPUT"
+				if ( idStr::Cmpn( s, "OUTPUT", 6 ) == 0 ) {
+					// it really is "OUTPUT" => replace "OUTPUT" with "ALIAS "
+					memcpy(s, "ALIAS ", 6);
+				}
+			}
+		}
+
+		assert( curLen + strlen( extraLines ) <= fullLen );
+
+		// now add extraLines that calculate and set a gamma-corrected result.color
+		// strcat() should be safe because fullLen was calculated taking all parts into account
+		strcat( outStr, extraLines );
+		start = outStr;
+	}
+
 	qglBindProgramARB( progs[progIndex].target, progs[progIndex].ident );
 	qglGetError();
 
@@ -425,7 +582,8 @@ void R_LoadARBProgram( int progIndex ) {
 		} else if ( ofs >= (int)strlen( start ) ) {
 			common->Printf( "error at end of program\n" );
 		} else {
-			common->Printf( "error at %i:\n%s", ofs, start + ofs );
+			int printOfs = Max( ofs - 20, 0 ); // DG: print some more context
+			common->Printf( "error at %i:\n%s", ofs, start + printOfs );
 		}
 		return;
 	}
@@ -472,7 +630,7 @@ int R_FindARBProgram( GLenum target, const char *program ) {
 	// add it to the list and load it
 	progs[i].ident = (program_t)0;	// will be gen'd by R_LoadARBProgram
 	progs[i].target = target;
-	strncpy( progs[i].name, program, sizeof( progs[i].name ) - 1 );
+	idStr::Copynz( progs[i].name, program, sizeof( progs[i].name ) );
 
 	R_LoadARBProgram( i );
 

@@ -369,13 +369,13 @@ public:
 
 	virtual const idDict &	GetPersistentPlayerInfo( int clientNum );
 	virtual void			SetPersistentPlayerInfo( int clientNum, const idDict &playerInfo );
-	virtual void			InitFromNewMap( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, bool isServer, bool isClient, int randSeed );
-	virtual bool			InitFromSaveGame( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, idFile *saveGameFile );
+	virtual void			InitFromNewMap(const char* mapName, idRenderWorld* renderWorld, idSoundWorld* soundWorld, bool isServer, bool isClient, int randSeed );
+	virtual bool			InitFromSaveGame(const char* mapName, idRenderWorld* renderWorld, idSoundWorld* soundWorld, idFile* saveGameFile );
 	virtual void			SaveGame( idFile *saveGameFile );
 	virtual void			MapShutdown( void );
 	virtual void			CacheDictionaryMedia( const idDict *dict );
 	virtual void			SpawnPlayer( int clientNum );
-	virtual gameReturn_t	RunFrame( const usercmd_t *clientCmds );
+	virtual gameReturn_t	RunFrame(const usercmd_t* clientCmds );
 	virtual bool			Draw( int clientNum );
 	virtual escReply_t		HandleESC( idUserInterface **gui );
 	virtual idUserInterface	*StartMenu( void );
@@ -516,6 +516,7 @@ public:
 
 private:
 	const static int		INITIAL_SPAWN_COUNT = 1;
+	const static int		INTERNAL_SAVEGAME_VERSION = 1; // DG: added this for >= 1305 savegames
 
 	idStr					mapFileName;			// name of the map, empty string if no map loaded
 	idMapFile *				mapFile;				// will be NULL during the game unless in-game editing is used

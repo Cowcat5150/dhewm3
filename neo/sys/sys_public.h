@@ -57,7 +57,8 @@ typedef enum {
 	SE_NONE,				// evTime is still valid
 	SE_KEY,					// evValue is a key code, evValue2 is the down flag
 	SE_CHAR,				// evValue is an ascii char
-	SE_MOUSE,				// evValue and evValue2 are reletive signed x / y moves
+	SE_MOUSE,				// evValue and evValue2 are relative signed x / y moves
+	SE_MOUSE_ABS,			// evValue and evValue2 are absolute x / y coordinates in the window
 	SE_JOYSTICK_AXIS,		// evValue is an axis number and evValue2 is the current state (-127 to 127)
 	SE_CONSOLE				// evPtr is a char*, from typing something at a non-game console
 } sysEventType_t;
@@ -101,6 +102,7 @@ void			Sys_Quit( void );
 
 // note that this isn't journaled...
 char *			Sys_GetClipboardData( void );
+void			Sys_FreeClipboardData( char* data );
 void			Sys_SetClipboardData( const char *string );
 
 // will go to the various text consoles
@@ -165,6 +167,17 @@ unsigned char	Sys_GetConsoleKey( bool shifted );
 // does nothing on win32, as SE_KEY == SE_CHAR there
 // on other OSes, consider the keyboard mapping
 unsigned char	Sys_MapCharForKey( int key );
+// for keynums between K_FIRST_SCANCODE and K_LAST_SCANCODE
+// returns e.g. "SC_A" for K_SC_A
+const char* Sys_GetScancodeName( int key );
+// returns localized name of the key (between K_FIRST_SCANCODE and K_LAST_SCANCODE),
+// regarding the current keyboard layout - if that name is in ASCII or corresponds
+// to a "High-ASCII" char supported by Doom3.
+// Otherwise return same name as Sys_GetScancodeName()
+// !! Returned string is only valid until next call to this function !!
+const char* Sys_GetLocalizedScancodeName( int key );
+// returns keyNum_t (K_SC_* constant) for given scancode name (like "SC_A")
+int Sys_GetKeynumForScancodeName( const char* name );
 
 // keyboard input polling
 int				Sys_PollKeyboardInputEvents( void );
@@ -307,6 +320,8 @@ const char *		Sys_GetThreadName( int *index = 0 );
 
 extern void Sys_InitThreads();
 extern void Sys_ShutdownThreads();
+
+bool Sys_IsMainThread();
 
 const int MAX_CRITICAL_SECTIONS		= 5;
 

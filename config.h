@@ -11,6 +11,10 @@
 #define BUILD_LIBDIR		""
 #define BUILD_DATADIR		""
 
+#define D3_OSTYPE		"morphos"
+#define D3_ARCH			"ppc"
+#define D3_SIZEOFPTR		4
+
 /* #undef HAVE_JPEG_MEM_SRC */
 
 /* #define ID_ENABLE_CURL */

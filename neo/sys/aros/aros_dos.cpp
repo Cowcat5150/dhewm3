@@ -238,6 +238,10 @@ char *Sys_GetClipboardData(void) {
     return NULL;
 }
 
+void Sys_FreeClipboardData( char* data ) {
+	// as Sys_GetClipboardData() returns a static buffer, there's nothing to free
+}
+
 void Sys_SetClipboardData( const char *string ) {
     struct	IFFHandle	*IFFHandle;
     BOOL	written = FALSE;
@@ -471,10 +475,27 @@ void AROS_OpenURL( const char *url ) {
     URL_OpenA( (char *)url, tags );
 }
 
+bool AROS_GetSavePath(char buf[1024])
+{
+	static const size_t bufSize = 1024; // NOTE: keep in sync with caller/function sig!
+	BPTR pathlock;
+	bool ret = false;
+	if ((pathlock = Lock("PROGDIR:", SHARED_LOCK)) != BNULL)
+	{
+		if ( NameFromLock( pathlock, buf, bufSize ) )
+		{
+			D(bug("[ADoom3] Sys_GetPath: using '%s'\n", buf));
+			ret = true;
+		}
+		UnLock(pathlock);
+	}
+	return ret;
+}
 
 bool Sys_GetPath(sysPath_t type, idStr &path) {
     char buf[1024];
     BPTR pathlock;
+    bool ret = false;
 
     D(bug("[ADoom3] Sys_GetPath(%d)\n", type));
 
@@ -484,16 +505,11 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
     case PATH_BASE:
     case PATH_CONFIG:
     case PATH_SAVE:
-            if ((pathlock = Lock("PROGDIR:", SHARED_LOCK)) != BNULL)
-            {
-                if ( NameFromLock( pathlock, buf, sizeof( buf ) ) )
-                {
-                    D(bug("[ADoom3] Sys_GetPath: using '%s'\n", buf));
-                    path = buf;
-                }
-                UnLock(pathlock);
+            if(AROS_GetSavePath(buf)) {
+                path = buf;
+                ret = true;
             }
-            return true;
+            break;
 
     case PATH_EXE:
             if ((pathlock = Lock("PROGDIR:", SHARED_LOCK)) != BNULL)
@@ -506,11 +522,12 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 
                     D(bug("[ADoom3] Sys_GetPath: using '%s'\n", buf));
                     path = buf;
+                    ret = true;
                 }
                 UnLock(pathlock);
             }
-            return true;
+            break;
     }
 
-    return false;
+    return ret;
 }
