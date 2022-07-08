@@ -245,8 +245,11 @@ bool GLimp_Init(glimpParms_t parms) {
 
 		int talphabits = channelcolorbits;
 
+<<<<<<< HEAD
 try_again:
 
+=======
+>>>>>>> 407700bcbf81e341f894c384bf3dbda25f5f4287
 		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, channelcolorbits);
 		SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, channelcolorbits);
 		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, channelcolorbits);
@@ -491,6 +494,18 @@ try_again:
 		}
 #endif
 
+<<<<<<< HEAD
+=======
+		// for r_fillWindowAlphaChan -1, see also the big comment above
+		glConfig.shouldFillWindowAlpha = false;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		const char* videoDriver = SDL_GetCurrentVideoDriver();
+		if (idStr::Icmp(videoDriver, "wayland") == 0) {
+			glConfig.shouldFillWindowAlpha = true;
+		}
+#endif
+
+>>>>>>> 407700bcbf81e341f894c384bf3dbda25f5f4287
 		break;
 	}
 

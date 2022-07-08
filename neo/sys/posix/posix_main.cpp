@@ -49,6 +49,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "sys/posix/posix_public.h"
 
+#include <SDL.h> // clipboard
+
 #define					COMMAND_HISTORY 64
 
 static int				input_hide = 0;
@@ -76,6 +78,15 @@ idCVar com_pid( "com_pid", "0", CVAR_INTEGER | CVAR_INIT | CVAR_SYSTEM, "process
 static int set_exit = 0;
 static char exit_spawn[ 1024 ] = { 0 };
 
+static FILE* consoleLog = NULL;
+void Sys_VPrintf(const char *msg, va_list arg);
+
+#ifdef snprintf
+  // I actually wanna use real snprintf here, not idStr:snPrintf(),
+  // so get rid of the use_idStr_snPrintf #define
+  #undef snprintf
+#endif
+
 /*
 ================
 Posix_Exit
@@ -93,6 +104,12 @@ void Posix_Exit(int ret) {
 	if ( exit_spawn[0] ) {
 		Sys_DoStartProcess( exit_spawn, false );
 	}
+
+	if(consoleLog != NULL) {
+		fclose(consoleLog);
+		consoleLog = NULL;
+	}
+
 	// in case of signal, handler tries a common->Quit
 	// we use set_exit to maintain a correct exit code
 	if ( set_exit ) {
@@ -244,6 +261,9 @@ Sys_Init
 =================
 */
 void Sys_Init( void ) {
+	if(consoleLog != NULL)
+		common->Printf("Logging console output to %s/dhewm3log.txt\n", Posix_GetSavePath());
+
 	Posix_InitConsoleInput();
 	com_pid.SetInteger( getpid() );
 	common->Printf( "pid: %d\n", com_pid.GetInteger() );
@@ -268,7 +288,28 @@ TODO: OSX - use the native API instead? NSModule
 =================
 */
 uintptr_t Sys_DLL_Load( const char *path ) {
-	return (uintptr_t)dlopen( path, RTLD_NOW );
+	void* ret = dlopen( path, RTLD_NOW );
+	if (ret == NULL) {
+		// dlopen() failed - this might be ok (we tried one possible path and the next will work)
+		// or it might be worth warning about (the lib existed but still couldn't be loaded,
+		// maybe a missing symbol or permission problems)
+		// unfortunately we only get a string from dlerror(), not some distinctive error code..
+		// so use try to open() the file to get a better idea what went wrong
+
+		int fd = open(path, O_RDONLY);
+		if (fd < 0) { // couldn't open file for reading either
+			int e = errno;
+			if(e != ENOENT) {
+				// it didn't fail because the file doesn't exist - log it, might be interesting (=> likely permission problem)
+				common->Warning("Failed to load lib '%s'! Reason: %s ( %s )\n", path, dlerror(), strerror(e));
+			}
+		} else {
+			// file could be opened, so it exists => log just dlerror()
+			close(fd);
+			common->Warning("Failed to load lib '%s' even though it exists and is readable! Reason: %s\n", path, dlerror());
+		}
+	}
+	return (uintptr_t)ret;
 }
 
 /*
@@ -310,12 +351,28 @@ ID_TIME_T Sys_FileTimeStamp(FILE * fp) {
 }
 
 char *Sys_GetClipboardData(void) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	return SDL_GetClipboardText();
+#else
 	Sys_Printf( "TODO: Sys_GetClipboardData\n" );
 	return NULL;
+#endif
+}
+
+void Sys_FreeClipboardData( char* data ) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	SDL_free( data );
+#else
+	assert( 0 && "why is this called, Sys_GetClipboardData() isn't implemented for SDL1.2" );
+#endif
 }
 
 void Sys_SetClipboardData( const char *string ) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	SDL_SetClipboardText( string );
+#else
 	Sys_Printf( "TODO: Sys_SetClipboardData\n" );
+#endif
 }
 
 /*
@@ -362,10 +419,98 @@ int Sys_GetDriveFreeSpace( const char *path ) {
 static const int   crashSigs[]     = {  SIGILL,   SIGABRT,   SIGFPE,   SIGSEGV };
 static const char* crashSigNames[] = { "SIGILL", "SIGABRT", "SIGFPE", "SIGSEGV" };
 
-#if ( defined(__linux__) && defined(__GLIBC__) ) || defined(__FreeBSD__) || defined(__APPLE__)
-  // TODO: https://github.com/ianlancetaylor/libbacktrace looks interesting and also supports windows apparently
+#if ( defined(__linux__) && defined(__GLIBC__) ) || defined(__FreeBSD__) || (defined(__APPLE__) && !defined(OSX_TIGER))
   #define D3_HAVE_BACKTRACE
   #include <execinfo.h>
+#endif
+
+// unlike Sys_Printf() this doesn't call tty_Hide(); and tty_Show();
+// to minimize interaction with broken dhewm3 state
+// (but unlike regular printf() it'll also write to dhewm3log.txt)
+static void CrashPrintf(const char* msg, ...)
+{
+	va_list argptr;
+	va_start( argptr, msg );
+	Sys_VPrintf( msg, argptr );
+	va_end( argptr );
+}
+
+#ifdef D3_HAVE_LIBBACKTRACE
+// non-ancient versions of GCC and clang include libbacktrace
+// for ancient versions it can be built from https://github.com/ianlancetaylor/libbacktrace
+#include <backtrace.h>
+#include <cxxabi.h> // for demangling C++ symbols
+
+static struct backtrace_state *bt_state = NULL;
+
+static void bt_error_callback( void *data, const char *msg, int errnum )
+{
+	CrashPrintf("libbacktrace ERROR: %d - %s\n", errnum, msg);
+}
+
+static void bt_syminfo_callback( void *data, uintptr_t pc, const char *symname,
+								 uintptr_t symval, uintptr_t symsize )
+{
+	if (symname != NULL) {
+		int status;
+		// FIXME: sucks that __cxa_demangle() insists on using malloc().. but so does printf()
+		char* name = abi::__cxa_demangle(symname, NULL, NULL, &status);
+		if (name != NULL) {
+			symname = name;
+		}
+		CrashPrintf("  %zu %s\n", pc, symname);
+		free(name);
+	} else {
+		CrashPrintf("  %zu (unknown symbol)\n", pc);
+	}
+}
+
+static int bt_pcinfo_callback( void *data, uintptr_t pc, const char *filename, int lineno, const char *function )
+{
+	if (data != NULL) {
+		int* hadInfo = (int*)data;
+		*hadInfo = (function != NULL);
+	}
+
+	if (function != NULL) {
+		int status;
+		// FIXME: sucks that __cxa_demangle() insists on using malloc()..
+		char* name = abi::__cxa_demangle(function, NULL, NULL, &status);
+		if (name != NULL) {
+			function = name;
+		}
+
+		const char* fileNameNeo = strstr(filename, "/neo/");
+		if (fileNameNeo != NULL) {
+			filename = fileNameNeo+1; // I want "neo/bla/blub.cpp:42"
+		}
+		CrashPrintf("  %zu %s:%d %s\n", pc, filename, lineno, function);
+		free(name);
+	}
+
+	return 0;
+}
+
+static void bt_error_dummy( void *data, const char *msg, int errnum )
+{
+	//CrashPrintf("ERROR-DUMMY: %d - %s\n", errnum, msg);
+}
+
+static int bt_simple_callback(void *data, uintptr_t pc)
+{
+	int pcInfoWorked = 0;
+	// if this fails, the executable doesn't have debug info, that's ok (=> use bt_error_dummy())
+	backtrace_pcinfo(bt_state, pc, bt_pcinfo_callback, bt_error_dummy, &pcInfoWorked);
+	if (!pcInfoWorked) { // no debug info? use normal symbols instead
+		// yes, it would be easier to call backtrace_syminfo() in bt_pcinfo_callback() if function == NULL,
+		// but some libbacktrace versions (e.g. in Ubuntu 18.04's g++-7) don't call bt_pcinfo_callback
+		// at all if no debug info was available - which is also the reason backtrace_full() can't be used..
+		backtrace_syminfo(bt_state, pc, bt_syminfo_callback, bt_error_callback, NULL);
+	}
+
+	return 0;
+}
+
 #endif
 
 static void signalhandlerCrash(int sig)
@@ -379,29 +524,41 @@ static void signalhandlerCrash(int sig)
 	// TODO: should probably use a custom print function around write(STDERR_FILENO, ...)
 	//       because printf() could allocate which is not good if processes state is fscked
 	//       (could use backtrace_symbols_fd() then)
-	printf("Looks like %s crashed with signal %s (%d) - sorry!\n", ENGINE_VERSION, name, sig);
+	CrashPrintf("\n\nLooks like %s crashed with signal %s (%d) - sorry!\n", ENGINE_VERSION, name, sig);
 
-#ifdef D3_HAVE_BACKTRACE
+#ifdef D3_HAVE_LIBBACKTRACE
+	if (bt_state != NULL) {
+		int skip = 1; // skip this function in backtrace
+		backtrace_simple(bt_state, skip, bt_simple_callback, bt_error_callback, NULL);
+	} else {
+		CrashPrintf("(No backtrace because libbacktrace state is NULL)\n");
+	}
+#elif defined(D3_HAVE_BACKTRACE)
 	// this is partly based on Yamagi Quake II code
 	void* array[128];
 	int size = backtrace(array, sizeof(array)/sizeof(array[0]));
 	char** strings = backtrace_symbols(array, size);
 
-	printf("\nBacktrace:\n");
+	CrashPrintf("\nBacktrace:\n");
 
 	for(int i = 0; i < size; i++) {
-		printf("  %s\n", strings[i]);
+		CrashPrintf("  %s\n", strings[i]);
 	}
 
-	printf("\n");
+	CrashPrintf("\n(Sorry it's not overly useful, build with libbacktrace support to get function names)\n");
 
 	free(strings);
 
 #else
-	printf("(No Backtrace on this platform)\n");
+	CrashPrintf("(No Backtrace on this platform)\n");
 #endif
 
 	fflush(stdout);
+	if(consoleLog != NULL) {
+		fflush(consoleLog);
+		// TODO: fclose(consoleLog); ?
+		//       consoleLog = NULL;
+	}
 
 	raise(sig); // pass it on to system
 }
@@ -442,8 +599,41 @@ static void installSigHandler(int sig, int flags, void (*handler)(int))
 	sigaction(sig, &sigact, NULL);
 }
 
+static bool dirExists(const char* dirPath)
+{
+	struct stat buf = {};
+	if(stat(dirPath, &buf) == 0) {
+		return (buf.st_mode & S_IFMT) == S_IFDIR;
+	}
+	return false;
+}
+
+static bool createPathRecursive(char* path)
+{
+	if(!dirExists(path)) {
+		char* lastDirSep = strrchr(path, '/');
+		if(lastDirSep != NULL) {
+			*lastDirSep = '\0'; // cut off last part of the path and try first with parent directory
+			bool ok = createPathRecursive(path);
+			*lastDirSep = '/'; // restore path
+			// if parent dir was successfully created (or already existed), create this dir
+			if(ok && mkdir(path, 0755) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
 void Posix_InitSignalHandlers( void )
 {
+#ifdef D3_HAVE_LIBBACKTRACE
+	// can't use idStr here and thus can't use Sys_GetPath(PATH_EXE) => added Posix_GetExePath()
+	const char* exePath = Posix_GetExePath();
+	bt_state = backtrace_create_state(exePath[0] ? exePath : NULL, 0, bt_error_callback, NULL);
+#endif
+
 	for(int i=0; i<sizeof(crashSigs)/sizeof(crashSigs[0]); ++i)
 	{
 		installSigHandler(crashSigs[i], SA_RESTART|SA_RESETHAND, signalhandlerCrash);
@@ -451,6 +641,53 @@ void Posix_InitSignalHandlers( void )
 
 	installSigHandler(SIGTTIN, 0, signalhandlerConsoleStuff);
 	installSigHandler(SIGTTOU, 0, signalhandlerConsoleStuff);
+
+	// this is also a good place to open dhewm3log.txt for Sys_VPrintf()
+
+	const char* savePath = Posix_GetSavePath();
+	size_t savePathLen = strlen(savePath);
+	if(savePathLen > 0 && savePathLen < PATH_MAX) {
+		char logPath[PATH_MAX] = {};
+		if(savePath[savePathLen-1] == '/') {
+			--savePathLen;
+		}
+		memcpy(logPath, savePath, savePathLen);
+		logPath[savePathLen] = '\0';
+		if(!createPathRecursive(logPath)) {
+			printf("WARNING: Couldn't create save path '%s'!\n", logPath);
+			return;
+		}
+		char logFileName[PATH_MAX] = {};
+		int fullLogLen = snprintf(logFileName, sizeof(logFileName), "%s/dhewm3log.txt", logPath);
+		// cast to size_t which is unsigned and would get really big if fullLogLen < 0 (=> error in snprintf())
+		if((size_t)fullLogLen >= sizeof(logFileName)) {
+			printf("WARNING: Couldn't create dhewm3log.txt at '%s' because its length would be '%d' which is > PATH_MAX (%zd) or < 0!\n",
+			       logPath, fullLogLen, (size_t)PATH_MAX);
+			return;
+		}
+		struct stat buf;
+		if(stat(logFileName, &buf) == 0) {
+			// logfile exists, rename to dhewm3log-old.txt
+			char oldLogFileName[PATH_MAX] = {};
+			if((size_t)snprintf(oldLogFileName, sizeof(oldLogFileName), "%s/dhewm3log-old.txt", logPath) < sizeof(logFileName))
+			{
+				rename(logFileName, oldLogFileName);
+			}
+		}
+		consoleLog = fopen(logFileName, "w");
+		if(consoleLog == NULL) {
+			printf("WARNING: Couldn't open/create '%s', error was: %d (%s)\n", logFileName, errno, strerror(errno));
+		} else {
+			time_t tt = time(NULL);
+			const struct tm* tms = localtime(&tt);
+			char timeStr[64] = {};
+			strftime(timeStr, sizeof(timeStr), "%F %H:%M:%S", tms);
+			fprintf(consoleLog, "Opened this log at %s\n", timeStr);
+		}
+
+	} else {
+		printf("WARNING: Posix_GetSavePath() returned path with invalid length '%zd'!\n", savePathLen);
+	}
 }
 
 // ----------- signal handling stuff done ------------
@@ -521,7 +758,8 @@ void Posix_InitConsoleInput( void ) {
 		// check the terminal type for the supported ones
 		char *term = getenv( "TERM" );
 		if ( term ) {
-			if ( strcmp( term, "linux" ) && strcmp( term, "xterm" ) && strcmp( term, "xterm-color" ) && strcmp( term, "screen" ) ) {
+			if ( strcmp( term, "linux" ) != 0 && strcmp( term, "xterm" ) != 0
+			     && idStr::Cmpn( term, "xterm-", 6 ) != 0 && strcmp( term, "screen" ) != 0) {
 				Sys_Printf( "WARNING: terminal type '%s' is unknown. terminal support may not work correctly\n", term );
 			}
 		}
@@ -875,35 +1113,45 @@ low level output
 ===============
 */
 
+void Sys_VPrintf( const char *msg, va_list arg ) {
+	// gonna use arg twice, so copy it
+	va_list arg2;
+	va_copy(arg2, arg);
+
+	// first print to stdout()
+	vprintf(msg, arg2);
+
+	va_end(arg2); // arg2 is not needed anymore
+
+	// then print to the log, if any
+	if(consoleLog != NULL)
+	{
+		vfprintf(consoleLog, msg, arg);
+	}
+}
+
 void Sys_DebugPrintf( const char *fmt, ... ) {
 	va_list argptr;
 
 	tty_Hide();
 	va_start( argptr, fmt );
-	vprintf( fmt, argptr );
+	Sys_VPrintf( fmt, argptr );
 	va_end( argptr );
 	tty_Show();
 }
 
 void Sys_DebugVPrintf( const char *fmt, va_list arg ) {
 	tty_Hide();
-	vprintf( fmt, arg );
+	Sys_VPrintf( fmt, arg );
 	tty_Show();
 }
 
 void Sys_Printf(const char *msg, ...) {
 	va_list argptr;
-
 	tty_Hide();
 	va_start( argptr, msg );
-	vprintf( msg, argptr );
+	Sys_VPrintf( msg, argptr );
 	va_end( argptr );
-	tty_Show();
-}
-
-void Sys_VPrintf(const char *msg, va_list arg) {
-	tty_Hide();
-	vprintf(msg, arg);
 	tty_Show();
 }
 

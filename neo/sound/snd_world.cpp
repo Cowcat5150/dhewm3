@@ -93,6 +93,9 @@ void idSoundWorldLocal::Init( idRenderWorld *renderWorld ) {
 				// pow(10.0, (-1150*1.5)/2000.0)
 				soundSystemLocal.alFilterf(listenerFilters[1], AL_LOWPASS_GAINHF, 0.137246f);
 			}
+			// allow reducing the gain effect globally via s_alReverbGain CVar
+			listenerSlotReverbGain = soundSystemLocal.s_alReverbGain.GetFloat();
+			soundSystemLocal.alAuxiliaryEffectSlotf(listenerSlot, AL_EFFECTSLOT_GAIN, listenerSlotReverbGain);
 		}
 	}
 
@@ -130,6 +133,7 @@ idSoundWorldLocal::idSoundWorldLocal() {
 	listenerEffect                = 0;
 	listenerSlot                  = 0;
 	listenerAreFiltersInitialized = false;
+	listenerSlotReverbGain = 1.0f;
 }
 
 /*
@@ -182,6 +186,7 @@ void idSoundWorldLocal::Shutdown() {
 				listenerFilters[1] = AL_FILTER_NULL;
 			}
 		}
+		listenerSlotReverbGain = 1.0f;
 	}
 
 	localSound = NULL;
@@ -523,6 +528,13 @@ void idSoundWorldLocal::MixLoop( int current44kHz, int numSpeakers, float *final
 	if (idSoundSystemLocal::useEFXReverb && soundSystemLocal.efxloaded) {
 		ALuint effect = 0;
 		idStr s(listenerArea);
+
+		// allow reducing the gain effect globally via s_alReverbGain CVar
+		float gain = soundSystemLocal.s_alReverbGain.GetFloat();
+		if (listenerSlotReverbGain != gain) {
+			listenerSlotReverbGain = gain;
+			soundSystemLocal.alAuxiliaryEffectSlotf(listenerSlot, AL_EFFECTSLOT_GAIN, gain);
+		}
 
 		bool found = soundSystemLocal.EFXDatabase.FindEffect(s, &effect);
 		if (!found) {
@@ -1487,6 +1499,16 @@ void idSoundWorldLocal::Pause( void ) {
 	}
 
 	pause44kHz = soundSystemLocal.GetCurrent44kHzTime();
+
+	for ( int i = 0; i < emitters.Num(); i++ ) {
+		idSoundEmitterLocal * emitter = emitters[i];
+
+		// if no channels are active, do nothing
+		if ( emitter == NULL || !emitter->playing ) {
+			continue;
+		}
+		emitter->PauseAll();
+	}
 }
 
 /*
@@ -1506,6 +1528,16 @@ void idSoundWorldLocal::UnPause( void ) {
 	OffsetSoundTime( offset44kHz );
 
 	pause44kHz = -1;
+
+	for ( int i = 0; i < emitters.Num(); i++ ) {
+		idSoundEmitterLocal * emitter = emitters[i];
+
+		// if no channels are active, do nothing
+		if ( emitter == NULL || !emitter->playing ) {
+			continue;
+		}
+		emitter->UnPauseAll();
+	}
 }
 
 /*

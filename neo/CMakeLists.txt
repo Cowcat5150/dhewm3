@@ -33,6 +33,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/sys/cmake")
 
 if(LINUX_RELEASE_BINS)
 	message(STATUS "Setting RPATH to \$ORIGIN/libs/ so you can put dependencies in there")
+	set(CMAKE_SKIP_RPATH OFF CACHE BOOL "Skip RPATH" FORCE)
 	set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 	set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 	set(CMAKE_INSTALL_RPATH "$ORIGIN/libs")
@@ -50,7 +51,7 @@ option(CORE			"Build the core" ON)
 option(BASE			"Build the base game code" ON)
 option(D3XP			"Build the d3xp game code" ON)
 if(MSVC)
-	option(TOOLS		"Build the tools game code (32bit Windows+Visual Studio+SDL2 only)" OFF)
+	option(TOOLS		"Build the tools game code (Visual Studio+SDL2 only)" OFF)
 endif()
 option(DEDICATED	"Build the dedicated server" OFF)
 option(ONATIVE		"Optimize for the host CPU" OFF)
@@ -67,36 +68,67 @@ endif()
 
 # target cpu
 set(cpu ${CMAKE_SYSTEM_PROCESSOR})
+
+# Originally, ${CMAKE_SYSTEM_PROCESSOR} was supposed to contain the *target* CPU, according to CMake's documentation.
+# As far as I can tell this has always been broken (always returns host CPU) at least on Windows
+# (see e.g. https://cmake.org/pipermail/cmake-developers/2014-September/011405.html) and wasn't reliable on
+# other systems either, for example on Linux with 32bit userland but 64bit kernel it returned the kernel CPU type
+# (e.g. x86_64 instead of i686). Instead of fixing this, CMake eventually updated their documentation in 3.20,
+# now it's officially the same as CMAKE_HOST_SYSTEM_PROCESSOR except when cross-compiling (where it's explicitly set)
+# So we gotta figure out the actual target CPU type ourselves.. (why am I sticking to this garbage buildsystem?)
+if(NOT (CMAKE_SYSTEM_PROCESSOR STREQUAL CMAKE_HOST_SYSTEM_PROCESSOR))
+	# special case: cross-compiling, here CMAKE_SYSTEM_PROCESSOR should be correct, hopefully
+	# (just leave cpu at ${CMAKE_SYSTEM_PROCESSOR})
+elseif(MSVC)
+	message(STATUS "CMAKE_GENERATOR_PLATFORM: ${CMAKE_GENERATOR_PLATFORM}")
+	if(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+		set(cpu "x86")
+	elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+		set(cpu "x86_64")
+	elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM")
+		# at least on RPi 32bit, gcc -dumpmachine outputs "arm-linux-gnueabihf",
+		#  so we'll use "arm" there => use the same for 32bit ARM on MSVC
+		set(cpu "arm")
+	elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+		set(cpu "arm64")
+	else()
+		message(FATAL_ERROR "Unknown Target CPU/platform ${CMAKE_GENERATOR_PLATFORM}")
+	endif()
+	message(STATUS "  => CPU architecture extracted from that: \"${cpu}\"")
+else() # not MSVC and not cross-compiling, assume GCC or clang (-compatible), seems to work for MinGW as well
+	execute_process(COMMAND ${CMAKE_C_COMPILER} "-dumpmachine"
+	                RESULT_VARIABLE cc_dumpmachine_res
+	                OUTPUT_VARIABLE cc_dumpmachine_out)
+	if(cc_dumpmachine_res EQUAL 0)
+		string(STRIP ${cc_dumpmachine_out} cc_dumpmachine_out) # get rid of trailing newline
+		message(STATUS "`${CMAKE_C_COMPILER} -dumpmachine` says: \"${cc_dumpmachine_out}\"")
+		# gcc -dumpmachine and clang -dumpmachine seem to print something like "x86_64-linux-gnu" (gcc)
+		# or "x64_64-pc-linux-gnu" (clang) or "i686-w64-mingw32" (32bit mingw-w64) i.e. starting with the CPU,
+		# then "-" and then OS or whatever - so use everything up to first "-"
+		string(REGEX MATCH "^[^-]+" cpu ${cc_dumpmachine_out})
+		message(STATUS "  => CPU architecture extracted from that: \"${cpu}\"")
+	else()
+		message(WARNING "${CMAKE_C_COMPILER} -dumpmachine failed with error (code) ${cc_dumpmachine_res}")
+		message(WARNING "will use the (sometimes incorrect) CMAKE_SYSTEM_PROCESSOR (${cpu}) to determine D3_ARCH")
+	endif()
+endif()
+
 if(cpu STREQUAL "powerpc")
 	set(cpu "ppc")
+elseif(cpu STREQUAL "aarch64")
+	# "arm64" is more obvious, and some operating systems (like macOS) use it instead of "aarch64"
+	set(cpu "arm64")
 elseif(cpu MATCHES "i.86")
 	set(cpu "x86")
 elseif(cpu MATCHES "[aA][mM][dD]64" OR cpu MATCHES "[xX]64")
 	set(cpu "x86_64")
-endif()
-
-# On Windows ${CMAKE_SYSTEM_PROCESSOR} is broken (always returns host CPU)
-# which has only been reported >7 years ago (https://cmake.org/pipermail/cmake-developers/2014-September/011405.html)
-# so obviously a fix is too much to ask. Here's the special case to make that wonderful platform work;
-# except if it's Windows for ARM(64) I guess, no idea how to detect that properly (I don't own such hardware).
-if(MSVC)
-	if(cpu MATCHES ".*[aA][rR][mM].*")
-		message(FATAL_ERROR "please fix this code to work for Windows on ARM and send a pull request")
-	endif()
-	if(CMAKE_CL_64)
-		set(cpu "x86_64")
-	else()
-		set(cpu "x86")
-	endif()
-elseif(DEFINED ENV{MINGW_CHOST})
-	# looks like it's broken in MinGW32 shells (or 32bit mingw-w64 shells) as well, this should help:
-	message(STATUS "MINGW_CHOST = $ENV{MINGW_CHOST}")
-	if($ENV{MINGW_CHOST} MATCHES "^i.86.*")
-		set(cpu "x86")
-	elseif($ENV{MINGW_CHOST} MATCHES "^x86_64.*")
-		set(cpu "x86_64")
-	else()
-		message(FATAL_ERROR "please fix this code to work for MINGW_CHOST = $ENV{MINGW_CHOST} and send a pull request!")
+elseif(cpu MATCHES "[aA][rR][mM].*") # some kind of arm..
+	# On 32bit Raspbian gcc -dumpmachine returns sth starting with "arm-",
+	# while clang -dumpmachine says "arm6k-..." - try to unify that to "arm"
+	if(CMAKE_SIZEOF_VOID_P EQUAL 8) # sizeof(void*) == 8 => must be arm64
+		set(cpu "arm64")
+	else() # should be 32bit arm then (probably "armv7l" "armv6k" or sth like that)
+		set(cpu "arm")
 	endif()
 endif()
 
@@ -153,15 +185,6 @@ endif()
 find_package(ZLIB REQUIRED)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
-find_package(OGG REQUIRED)
-include_directories(${OGG_INCLUDE_DIR})
-
-find_package(Vorbis REQUIRED)
-include_directories(${VORBIS_INCLUDE_DIR})
-
-find_package(VorbisFile REQUIRED)
-include_directories(${VORBISFILE_INCLUDE_DIR})
-
 find_package(OpenAL REQUIRED)
 include_directories(${OPENAL_INCLUDE_DIR})
 
@@ -193,8 +216,9 @@ find_package(CURL QUIET)
 if(CURL_FOUND)
 	set(ID_ENABLE_CURL ON)
 	include_directories(${CURL_INCLUDE_DIR})
+	message(STATUS "libcurl found and enabled")
 else()
-	message(STATUS "libcurl not found, server downloads won't be available")
+	message(WARNING "libcurl not found, server downloads won't be available (apart from that dhewm3 will work)")
 	set(ID_ENABLE_CURL OFF)
 	set(CURL_LIBRARY "")
 endif()
@@ -207,7 +231,27 @@ if(MSVC)
 		message(SEND_ERROR "MFC ('Microsoft Foundation Classes for C++') couldn't be found, but is needed for TOOLS!")
 		message(FATAL_ERROR "If you're using VS2013, you'll also need the 'Multibyte MFC Library for Visual Studio 2013': https://www.microsoft.com/en-us/download/details.aspx?id=40770 (VS2015 and 2017 include that in the default MFC package)")
 	endif()
-endif()
+
+else() # not MSVC
+
+if(NOT WIN32)
+	# libbacktrace support - TODO: might work with MinGW? we don't have a crash handler for win32 though..
+	include(CheckCSourceCompiles)
+	set(CMAKE_REQUIRED_LIBRARIES backtrace)
+	check_c_source_compiles( "#include <backtrace.h>
+	int main() { backtrace_create_state(NULL, 0, NULL, NULL); return 0; }" HAVE_LIBBACKTRACE )
+	unset(CMAKE_REQUIRED_LIBRARIES)
+
+	if(HAVE_LIBBACKTRACE)
+		set(sys_libs ${sys_libs} backtrace)
+		add_definitions(-DD3_HAVE_LIBBACKTRACE)
+		message(STATUS "Using libbacktrace")
+	else()
+		message(WARNING "libbacktrace wasn't found. It's not required but recommended, because it provides useful backtraces if dhewm3 crashes")
+	endif()
+endif() # NOT WIN32
+
+endif() # not MSVC
 
 # compiler specific flags
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
@@ -223,14 +267,17 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 	set(CMAKE_C_FLAGS_DEBUG "-g -ggdb -D_DEBUG -O0")
 	set(CMAKE_C_FLAGS_DEBUGALL "-g -ggdb -D_DEBUG")
 	set(CMAKE_C_FLAGS_PROFILE "-g -ggdb -D_DEBUG -O1 -fno-omit-frame-pointer")
-	set(CMAKE_C_FLAGS_RELEASE "-O2 -fno-unsafe-math-optimizations -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
-	set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -ggdb -O2 -fno-unsafe-math-optimizations -fno-math-errno -fno-trapping-math -fno-omit-frame-pointer")
-	set(CMAKE_C_FLAGS_MINSIZEREL "-Os -fno-unsafe-math-optimizations -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
+	set(CMAKE_C_FLAGS_RELEASE "-O2 -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
+	set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -ggdb -O2 -fno-math-errno -fno-trapping-math -fno-omit-frame-pointer")
+	set(CMAKE_C_FLAGS_MINSIZEREL "-Os -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
 
 	set(CMAKE_CXX_FLAGS_DEBUGALL ${CMAKE_C_FLAGS_DEBUGALL})
 	set(CMAKE_CXX_FLAGS_PROFILE ${CMAKE_C_FLAGS_PROFILE})
 
 	add_compile_options(-fno-strict-aliasing)
+	# dear idiot compilers, don't fuck up math code with useless FMA "optimizations"
+	# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100839)
+	add_compile_options(-ffp-contract=off)
 
 	if(NOT AROS)
 		CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" cxx_has_fvisibility)
@@ -280,8 +327,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 		elseif(cpu STREQUAL "ppc")
 			CHECK_CXX_COMPILER_FLAG("-arch ppc" cxx_has_arch_ppc)
 			if(cxx_has_arch_ppc)
-				add_compile_options(-arch ppc)
-				set(ldflags "${ldflags} -arch ppc")
+				add_compile_options(-arch ppc -mone-byte-bool)
+				set(ldflags "${ldflags} -arch ppc -mone-byte-bool")
 			endif()
 
 			add_compile_options(-mmacosx-version-min=10.4)
@@ -302,8 +349,11 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 elseif(MSVC)
 	add_compile_options(/MP) # parallel build (use all cores, or as many as configured in VS)
 	
-	add_compile_options(/W4)
+	add_compile_options(/W3) # TODO: was /W4, caused trouble with VS2019 (and/or its integrated CMake? or only HarrieVG's setup?)
 	add_compile_options(/we4840) # treat as error when passing a class to a vararg-function (probably printf-like)
+	# treat several kinds of truncating int<->pointer conversions as errors (for more 64bit-safety)
+	add_compile_options(/we4306 /we4311 /we4312 /we4302)
+	# ignore the following warnings:
 	add_compile_options(/wd4100) # unreferenced formal parameter
 	add_compile_options(/wd4127) # conditional expression is constant
 	add_compile_options(/wd4244) # possible loss of data
@@ -784,6 +834,17 @@ set(src_d3xp
 
 add_globbed_headers(src_d3xp "d3xp")
 
+set(src_debuggerServer
+	tools/debugger/DebuggerBreakpoint.h
+	tools/debugger/DebuggerBreakpoint.cpp
+	tools/debugger/DebuggerServer.h
+	tools/debugger/DebuggerServer.cpp
+	tools/debugger/DebuggerScript.h
+	tools/debugger/DebuggerScript.cpp
+	tools/debugger/DebuggerMessages.h
+	tools/debugger/debugger.cpp
+)
+
 set(src_core
 	${src_renderer}
 	${src_framework}
@@ -845,6 +906,23 @@ if (TOOLS AND MFC_FOUND AND MSVC)
 	# Script editor
 	file(GLOB src_script_editor "tools/script/*.cpp")
 	add_globbed_headers(src_script_editor "tools/script")
+	# Script Debugger
+	set(src_debuggerClient
+		tools/debugger/DebuggerClient.h
+		tools/debugger/DebuggerClient.cpp
+		tools/debugger/DebuggerApp.h
+		tools/debugger/DebuggerApp.cpp
+		tools/debugger/DebuggerQuickWatchDlg.h
+		tools/debugger/DebuggerQuickWatchDlg.cpp
+		tools/debugger/DebuggerWindow.h
+		tools/debugger/DebuggerWindow.cpp
+		tools/debugger/DebuggerFindDlg.h
+		tools/debugger/DebuggerFindDlg.cpp
+	)
+	set(src_script_debugger
+		${src_debuggerServer}
+		${src_debuggerClient}
+	)
 	# sound editor?
 	file(GLOB src_sound_editor "tools/sound/*.cpp")
 	add_globbed_headers(src_sound_editor "tools/sound")
@@ -864,13 +942,17 @@ if (TOOLS AND MFC_FOUND AND MSVC)
 		${src_map_editor}
 		${src_script_editor}
 		${src_sound_editor}
+		${src_script_debugger}
 		"tools/edit_public.h"
 		"tools/edit_gui_common.h"
 		)
 	SET(CMAKE_MFC_FLAG 2)
-	set(TOOLS_DEFINES "ID_ALLOW_TOOLS;__AFXDLL")
+	set(TOOLS_DEFINES "ID_ALLOW_TOOLS;_AFXDLL")
 else()
-	set(src_editor_tools "tools/edit_stub.cpp" "tools/edit_public.h")
+	set(src_editor_tools "tools/edit_stub.cpp" "tools/edit_public.h" "tools/debugger/debugger_common.h")
+	list(APPEND src_editor_tools
+		${src_debuggerServer}
+	)
 endif()
 
 
@@ -1014,9 +1096,6 @@ if(CORE)
 	target_link_libraries(${DHEWM3BINARY}
 		idlib
 		${OPENAL_LIBRARY}
-		${VORBISFILE_LIBRARIES}
-		${VORBIS_LIBRARIES}
-		${OGG_LIBRARIES}
 		${CURL_LIBRARY}
 		${ZLIB_LIBRARY}
 		${SDLx_LIBRARY}
@@ -1038,17 +1117,15 @@ if(DEDICATED)
 		${src_stub_openal}
 		${src_stub_gl}
 		${src_sys_base}
+		${src_debuggerServer}
 	)
 	
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_core} ${src_sys_base} ${src_stub_openal} ${src_stub_gl})
+	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_core} ${src_sys_base} ${src_stub_openal} ${src_stub_gl} ${src_debuggerServer})
 
 	set_target_properties(${DHEWM3BINARY}ded PROPERTIES COMPILE_DEFINITIONS "ID_DEDICATED;__DOOM_DLL__")
 	set_target_properties(${DHEWM3BINARY}ded PROPERTIES LINK_FLAGS "${ldflags}")
 	target_link_libraries(${DHEWM3BINARY}ded
 		idlib
-		${VORBISFILE_LIBRARIES}
-		${VORBIS_LIBRARIES}
-		${OGG_LIBRARIES}
 		${CURL_LIBRARY}
 		${ZLIB_LIBRARY}
 		${SDLx_LIBRARY}

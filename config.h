@@ -13,7 +13,11 @@
 
 #define D3_OSTYPE		"morphos"
 #define D3_ARCH			"ppc"
+<<<<<<< HEAD
 #define D3_SIZEOFPTR    4
+=======
+#define D3_SIZEOFPTR		4
+>>>>>>> 407700bcbf81e341f894c384bf3dbda25f5f4287
 
 /* #undef HAVE_JPEG_MEM_SRC */
 

@@ -98,6 +98,10 @@ idCVar com_timescale( "timescale", "1", CVAR_SYSTEM | CVAR_FLOAT, "scales the ti
 idCVar com_makingBuild( "com_makingBuild", "0", CVAR_BOOL | CVAR_SYSTEM, "1 when making a build" );
 idCVar com_updateLoadSize( "com_updateLoadSize", "0", CVAR_BOOL | CVAR_SYSTEM | CVAR_NOCHEAT, "update the load size after loading a map" );
 
+idCVar com_enableDebuggerServer( "com_enableDebuggerServer", "0", CVAR_BOOL | CVAR_SYSTEM, "toggle debugger server and try to connect to com_dbgClientAdr" );
+idCVar com_dbgClientAdr( "com_dbgClientAdr", "localhost", CVAR_SYSTEM | CVAR_ARCHIVE, "debuggerApp client address" );
+idCVar com_dbgServerAdr( "com_dbgServerAdr", "localhost", CVAR_SYSTEM | CVAR_ARCHIVE, "debugger server address" );
+
 idCVar com_product_lang_ext( "com_product_lang_ext", "1", CVAR_INTEGER | CVAR_SYSTEM | CVAR_ARCHIVE, "Extension to use when creating language files." );
 
 // com_speeds times
@@ -111,6 +115,8 @@ int				com_frameNumber;		// variable frame number
 volatile int	com_ticNumber;			// 60 hz tics
 int				com_editors;			// currently opened editor(s)
 bool			com_editorActive;		//  true if an editor has focus
+
+bool			com_debuggerSupported;	// only set to true when the updateDebugger function is set. see GetAdditionalFunction()
 
 #ifdef _WIN32
 HWND			com_hwndMsg = NULL;
@@ -245,6 +251,7 @@ idCommonLocal::idCommonLocal( void ) {
 	com_fullyInitialized = false;
 	com_refreshOnPrint = false;
 	com_errorEntered = 0;
+	com_debuggerSupported = false;
 
 	strcpy( errorMessage, "" );
 
@@ -382,12 +389,17 @@ void idCommonLocal::VPrintf( const char *fmt, va_list args ) {
 	// remove any color codes
 	idStr::RemoveColors( msg );
 
-	// echo to dedicated console and early console
-	Sys_Printf( "%s", msg );
-
-	// print to script debugger server
-	// DebuggerServerPrint( msg );
-
+	if ( com_enableDebuggerServer.GetBool( ) ) 	{
+		// print to script debugger server
+		if ( com_editors & EDITOR_DEBUGGER )
+			DebuggerServerPrint( msg );
+		else
+			// only echo to dedicated console and early console when debugger is not running so no 
+			// deadlocks occur if engine functions called from the debuggerthread trace stuff..
+			Sys_Printf( "%s", msg );
+	} else {
+		Sys_Printf( "%s", msg );
+	}
 #if 0	// !@#
 #if defined(_DEBUG) && defined(WIN32)
 	if ( strlen( msg ) < 512 ) {
@@ -984,7 +996,6 @@ Activates or Deactivates a tool
 */
 void idCommonLocal::ActivateTool( bool active ) {
 	com_editorActive = active;
-	Sys_GrabMouseCursor( !active );
 }
 
 /*
@@ -1134,8 +1145,14 @@ Com_ScriptDebugger_f
 static void Com_ScriptDebugger_f( const idCmdArgs &args ) {
 	// Make sure it wasnt on the command line
 	if ( !( com_editors & EDITOR_DEBUGGER ) ) {
-		common->Printf( "Script debugger is currently disabled\n" );
-		// DebuggerClientLaunch();
+		
+		//start debugger server if needed
+		if ( !com_enableDebuggerServer.GetBool() )
+			com_enableDebuggerServer.SetBool( true );
+
+		//start debugger client.
+		DebuggerClientLaunch();
+
 	}
 }
 
@@ -2020,6 +2037,7 @@ void Com_LocalizeMaps_f( const idCmdArgs &args ) {
 		strCount += LocalizeMap(args.Argv(2), strTable, listHash, excludeList, write);
 	} else {
 		idStrList files;
+		//wow, what now? a hardcoded path?
 		GetFileList("z:/d3xp/d3xp/maps/game", "*.map", files);
 		for ( int i = 0; i < files.Num(); i++ ) {
 			idStr file =  fileSystem->OSPathToRelativePath(files[i]);
@@ -2398,6 +2416,14 @@ void idCommonLocal::Frame( void ) {
 			InitSIMD();
 		}
 
+		if ( com_enableDebuggerServer.IsModified() ) {
+			if ( com_enableDebuggerServer.GetBool() ) {
+				DebuggerServerInit();
+			} else {
+				DebuggerServerShutdown();
+			}
+		}
+
 		eventLoop->RunEventLoop();
 
 		com_frameTime = com_ticNumber * USERCMD_MSEC;
@@ -2566,7 +2592,7 @@ void idCommonLocal::Async( void ) {
 =================
 idCommonLocal::LoadGameDLLbyName
 
-Helper for LoadGameDLL() to make it less painfull to try different dll names.
+Helper for LoadGameDLL() to make it less painful to try different dll names.
 =================
 */
 void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
@@ -2631,7 +2657,8 @@ void idCommonLocal::LoadGameDLL( void ) {
 
 	// there was no gamelib for this mod, use default one from base game
 	if (!gameDLL) {
-		common->Warning( "couldn't load mod-specific %s, defaulting to base game's library!", dll );
+		common->Printf( "\n" );
+		common->Warning( "couldn't load mod-specific %s, defaulting to base game's library!\n", dll );
 		sys->DLL_GetFileName(BASE_GAMEDIR, dll, sizeof(dll));
 		LoadGameDLLbyName(dll, s);
 	}
@@ -2666,7 +2693,7 @@ void idCommonLocal::LoadGameDLL( void ) {
 	gameImport.AASFileManager			= ::AASFileManager;
 	gameImport.collisionModelManager	= ::collisionModelManager;
 
-	gameExport							= *GetGameAPI( &gameImport );
+	gameExport							= *GetGameAPI( &gameImport);
 
 	if ( gameExport.version != GAME_API_VERSION ) {
 		Sys_DLL_Unload( gameDLL );
@@ -2709,6 +2736,7 @@ void idCommonLocal::UnloadGameDLL( void ) {
 
 #endif
 
+	com_debuggerSupported = false; // HvG: Reset debugger availability.
 	gameCallbacks.Reset(); // DG: these callbacks are invalid now because DLL has been unloaded
 }
 
@@ -2837,12 +2865,36 @@ static bool checkForHelp(int argc, char **argv)
 	return false;
 }
 
+#ifdef UINTPTR_MAX // DG: make sure D3_SIZEOFPTR is consistent with reality
+
+#if D3_SIZEOFPTR == 4
+  #if UINTPTR_MAX != 0xFFFFFFFFUL
+    #error "CMake assumes that we're building for a 32bit architecture, but UINTPTR_MAX doesn't match!"
+  #endif
+#elif D3_SIZEOFPTR == 8
+  #if UINTPTR_MAX != 18446744073709551615ULL
+    #error "CMake assumes that we're building for a 64bit architecture, but UINTPTR_MAX doesn't match!"
+  #endif
+#else
+  // Hello future person with a 128bit(?) CPU, I hope the future doesn't suck too much and that you don't still use CMake.
+  // Also, please adapt this check and send a pull request (or whatever way we have to send patches in the future)
+  #error "D3_SIZEOFPTR should really be 4 (for 32bit targets) or 8 (for 64bit targets), what kind of machine is this?!"
+#endif
+
+#endif // UINTPTR_MAX defined
+
 /*
 =================
 idCommonLocal::Init
 =================
 */
 void idCommonLocal::Init( int argc, char **argv ) {
+
+	// in case UINTPTR_MAX isn't defined (or wrong), do a runtime check at startup
+	if ( D3_SIZEOFPTR != sizeof(void*) ) {
+		Sys_Error( "Something went wrong in your build: CMake assumed that sizeof(void*) == %d but in reality it's %d!\n",
+		           (int)D3_SIZEOFPTR, (int)sizeof(void*) );
+	}
 
 	if(checkForHelp(argc, argv))
 	{
@@ -2871,6 +2923,17 @@ void idCommonLocal::Init( int argc, char **argv ) {
 		Sys_Error("Error while initializing SDL: %s", SDL_GetError());
 
 	Sys_InitThreads();
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	/* Force the window to minimize when focus is lost. This was the
+	 * default behavior until SDL 2.0.12 and changed with 2.0.14.
+	 * The windows staying maximized has some odd implications for
+	 * window ordering under Windows and some X11 window managers
+	 * like kwin. See:
+	 *  * https://github.com/libsdl-org/SDL/issues/4039
+	 *  * https://github.com/libsdl-org/SDL/issues/3656 */
+	SDL_SetHint( SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "1" );
+#endif
 
 	try {
 
@@ -2910,6 +2973,10 @@ void idCommonLocal::Init( int argc, char **argv ) {
 #endif
 		Printf( "%s using SDL v%u.%u.%u\n",
 				version.string, sdlv.major, sdlv.minor, sdlv.patch );
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		Printf( "SDL video driver: %s\n", SDL_GetCurrentVideoDriver() );
+#endif
 
 		// initialize key input/binding, done early so bind command exists
 		idKeyInput::Init();
@@ -3142,13 +3209,14 @@ void idCommonLocal::InitGame( void ) {
 	// initialize the user interfaces
 	uiManager->Init();
 
-	// startup the script debugger
-	// DebuggerServerInit();
-
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04350" ) );
 
 	// load the game dll
 	LoadGameDLL();
+
+	// startup the script debugger
+	if ( com_enableDebuggerServer.GetBool( ) )
+		DebuggerServerInit( );
 
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04351" ) );
 
@@ -3181,7 +3249,8 @@ void idCommonLocal::ShutdownGame( bool reloading ) {
 	}
 
 	// shutdown the script debugger
-	// DebuggerServerShutdown();
+	if ( com_enableDebuggerServer.GetBool() )	
+		DebuggerServerShutdown();
 
 	idAsyncNetwork::client.Shutdown();
 
@@ -3244,9 +3313,19 @@ bool idCommonLocal::SetCallback(idCommon::CallbackType cbt, idCommon::FunctionPo
 	}
 }
 
-static bool isDemo(void)
+static bool isDemo( void )
 {
 	return sessLocal.IsDemoVersion();
+}
+
+static bool updateDebugger( idInterpreter *interpreter, idProgram *program, int instructionPointer )
+{
+	if (com_editors & EDITOR_DEBUGGER) 
+	{
+		DebuggerServerCheckBreakpoint( interpreter, program, instructionPointer );
+		return true;
+	}
+	return false;
 }
 
 // returns true if that function is available in this version of dhewm3
@@ -3262,11 +3341,17 @@ bool idCommonLocal::GetAdditionalFunction(idCommon::FunctionType ft, idCommon::F
 		Warning("Called idCommon::GetAdditionalFunction() with out_fnptr == NULL!\n");
 		return false;
 	}
+
 	switch(ft)
 	{
 		case idCommon::FT_IsDemo:
 			*out_fnptr = (idCommon::FunctionPointer)isDemo;
 			// don't set *out_userArg, this function takes no arguments
+			return true;
+
+		case idCommon::FT_UpdateDebugger:
+			*out_fnptr = (idCommon::FunctionPointer)updateDebugger;
+			com_debuggerSupported = true;
 			return true;
 
 		default:
@@ -3275,7 +3360,6 @@ bool idCommonLocal::GetAdditionalFunction(idCommon::FunctionType ft, idCommon::F
 			return false;
 	}
 }
-
 
 idGameCallbacks gameCallbacks;
 

@@ -16,7 +16,7 @@ PATH_SOURCE = ./
 CXX_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive -Wno-class-memaccess
 CC_FLAGS = -Wall -DNDEBUG -O2 -ffast-math -noixemul -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security
 
-CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I/gg/usr/local/include/SDL2 -I/gg/usr/local/include
+CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/sys/morphos/OpenAL -I/gg/usr/local/include/SDL2 -I/gg/usr/local/include
 CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/game -I/gg/usr/local/include/SDL2
 CXX_INCLUDES_D3XP = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/d3xp -I/gg/usr/local/include/SDL2
 CXX_DEFINES = -D__DOOM_DLL__
@@ -320,6 +320,10 @@ $(BR)/CollisionModel_rotate.o \
 $(BR)/CollisionModel_trace.o \
 $(BR)/CollisionModel_translate.o \
 \
+$(BR)/debugger.o \
+$(BR)/DebuggerBreakpoint.o \
+$(BR)/DebuggerServer.o \
+\
 $(BR)/dmap.o \
 $(BR)/facebsp.o \
 $(BR)/gldraw.o \
@@ -400,7 +404,7 @@ BASE = $(B)/base.so
 D3XP = $(B)/d3xp.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -Lneo/sys/morphos -lopenal -lSDL2 -lvorbisfile -lvorbis -logg -lpthread -ldll
+LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -Lneo/sys/morphos -Lneo/sys/morphos/OpenAL -lopenal -lSDL2 -lvorbisfile -lvorbis -logg -lpthread -ldll
 
 all: $(IDLIB) $(BASE) $(D3XP) $(DOOM)  
 
@@ -441,10 +445,12 @@ $(BASE): $(OBJBASE)
 $(D3XP): $(OBJD3XP)
 	$(CXX) -o $@ $(OBJD3XP) $(IDLIB) -noixemul -Lneo/sys/morphos -ldll
 	$(STRIP) $@
-	
-$(DOOM): $(OBJDOOM)
+
+$(DOOM).db: $(OBJDOOM)
 	$(CXX) -o $@ $(OBJDOOM) $(LIBS)
-	$(STRIP) $@
+
+$(DOOM): $(DOOM).db
+	$(STRIP) --strip-unneeded --remove-section=.comment $< -o $@
 
 #RENDERER
 
@@ -643,6 +649,17 @@ $(BR)/CollisionModel_rotate.o: neo/cm/CollisionModel_rotate.cpp
 $(BR)/CollisionModel_trace.o: neo/cm/CollisionModel_trace.cpp
 	$(DO_CXX)
 $(BR)/CollisionModel_translate.o: neo/cm/CollisionModel_translate.cpp
+	$(DO_CXX)
+
+#Debugger
+
+$(BR)/debugger.o: neo/tools/debugger/debugger.cpp
+	$(DO_CXX)
+
+$(BR)/DebuggerBreakpoint.o: neo/tools/debugger/DebuggerBreakpoint.cpp
+	$(DO_CXX)
+
+$(BR)/DebuggerServer.o: neo/tools/debugger/DebuggerServer.cpp
 	$(DO_CXX)
 
 #DMAP
