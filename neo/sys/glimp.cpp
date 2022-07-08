@@ -152,8 +152,15 @@ bool GLimp_Init(glimpParms_t parms) {
 
 	Uint32 flags = SDL_WINDOW_OPENGL;
 
-	if (parms.fullScreen)
-		flags |= SDL_WINDOW_FULLSCREEN;
+	if (parms.fullScreen == 1)
+	{
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		if(r_fullscreenDesktop.GetBool())
+			flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+		else
+#endif
+			flags |= SDL_WINDOW_FULLSCREEN;
+	}
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	/* Doom3 has the nasty habit of modifying the default framebuffer's alpha channel and then
@@ -245,11 +252,8 @@ bool GLimp_Init(glimpParms_t parms) {
 
 		int talphabits = channelcolorbits;
 
-<<<<<<< HEAD
 try_again:
 
-=======
->>>>>>> 407700bcbf81e341f894c384bf3dbda25f5f4287
 		SDL_GL_SetAttribute(SDL_GL_RED_SIZE, channelcolorbits);
 		SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, channelcolorbits);
 		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, channelcolorbits);
@@ -325,6 +329,75 @@ try_again:
 			// creating the window succeeded, so adjust r_multiSamples to the value that was actually used
 			parms.multiSamples = multisamples;
 			r_multiSamples.SetInteger(multisamples);
+		}
+
+		/* Check if we're really in the requested display mode. There is
+		   (or was) an SDL bug were SDL switched into the wrong mode
+		   without giving an error code. See the bug report for details:
+		   https://bugzilla.libsdl.org/show_bug.cgi?id=4700 */
+		if ((flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) == SDL_WINDOW_FULLSCREEN)
+		{
+			SDL_DisplayMode real_mode;
+			if (SDL_GetWindowDisplayMode(window, &real_mode) != 0)
+			{
+				SDL_DestroyWindow(window);
+				window = NULL;
+				common->Warning("Can't get display mode: %s\n", SDL_GetError());
+				return false; // trying other color depth etc is unlikely to help with this issue
+			}
+			if ((real_mode.w != parms.width) || (real_mode.h != parms.height))
+			{
+				common->Warning("Current display mode isn't requested display mode\n");
+				common->Warning("Likely SDL bug #4700, trying to work around it..\n");
+				int dIdx = SDL_GetWindowDisplayIndex(window);
+				if(dIdx != displayIndex) {
+					common->Warning("Window's display index is %d, but we wanted %d!\n", dIdx, displayIndex);
+				}
+
+				/* Mkay, try to hack around that. */
+				SDL_DisplayMode wanted_mode = {};
+
+				wanted_mode.w = parms.width;
+				wanted_mode.h = parms.height;
+
+				if (SDL_SetWindowDisplayMode(window, &wanted_mode) != 0)
+				{
+					SDL_DestroyWindow(window);
+					window = NULL;
+
+					common->Warning("Can't force resolution to %ix%i: %s\n", parms.width, parms.height, SDL_GetError());
+
+					return false; // trying other color depth etc is unlikely to help with this issue
+				}
+
+				/* The SDL doku says, that SDL_SetWindowSize() shouldn't be
+				   used on fullscreen windows. But at least in my test with
+				   SDL 2.0.9 the subsequent SDL_GetWindowDisplayMode() fails
+				   if I don't call it. */
+				SDL_SetWindowSize(window, wanted_mode.w, wanted_mode.h);
+
+				if (SDL_GetWindowDisplayMode(window, &real_mode) != 0)
+				{
+					SDL_DestroyWindow(window);
+					window = NULL;
+
+					common->Warning("Can't get display mode: %s\n", SDL_GetError());
+
+					return false; // trying other color depth etc is unlikely to help with this issue
+				}
+
+				if ((real_mode.w != parms.width) || (real_mode.h != parms.height))
+				{
+					SDL_DestroyWindow(window);
+					window = NULL;
+
+					common->Warning("Still in wrong display mode: %ix%i instead of %ix%i\n",
+					                real_mode.w, real_mode.h, parms.width, parms.height);
+
+					return false; // trying other color depth etc is unlikely to help with this issue
+				}
+				common->Warning("Now we have the requested resolution (%d x %d)\n", parms.width, parms.height);
+			}
 		}
 
 		context = SDL_GL_CreateContext(window);
@@ -494,18 +567,6 @@ try_again:
 		}
 #endif
 
-<<<<<<< HEAD
-=======
-		// for r_fillWindowAlphaChan -1, see also the big comment above
-		glConfig.shouldFillWindowAlpha = false;
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-		const char* videoDriver = SDL_GetCurrentVideoDriver();
-		if (idStr::Icmp(videoDriver, "wayland") == 0) {
-			glConfig.shouldFillWindowAlpha = true;
-		}
-#endif
-
->>>>>>> 407700bcbf81e341f894c384bf3dbda25f5f4287
 		break;
 	}
 
