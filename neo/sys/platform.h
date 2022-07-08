@@ -74,7 +74,7 @@ If you have questions concerning this license or the applicable additional terms
 #undef VPrintf
 
 #endif
-// Win32
+// AROS
 #if defined(__AROS__)
 
 #define _alloca						alloca
@@ -232,6 +232,18 @@ If you have questions concerning this license or the applicable additional terms
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef FindText								// stupid namespace poluting Microsoft monkeys
+#endif
+
+// Apple legacy
+#ifdef __APPLE__
+#include <Availability.h>
+#ifdef __MAC_OS_X_VERSION_MIN_REQUIRED
+#if __MAC_OS_X_VERSION_MIN_REQUIRED == 1040
+#define OSX_TIGER
+#elif __MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+#define OSX_LEOPARD
+#endif
+#endif
 #endif
 
 #define ID_TIME_T time_t

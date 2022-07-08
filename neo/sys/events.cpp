@@ -32,8 +32,9 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/containers/List.h"
 #include "idlib/Heap.h"
 #include "framework/Common.h"
+#include "framework/Console.h"
 #include "framework/KeyInput.h"
-#include "framework/Session.h"
+#include "framework/Session_local.h"
 #include "renderer/RenderSystem.h"
 #include "renderer/tr_local.h"
 
@@ -59,11 +60,27 @@ If you have questions concerning this license or the applicable additional terms
 #define SDLK_PRINTSCREEN SDLK_PRINT
 #endif
 
-const char *kbdNames[] = {
+// NOTE: g++-4.7 doesn't like when this is static (for idCmdSystem::ArgCompletion_String<kbdNames>)
+const char *_in_kbdNames[] = {
+#if SDL_VERSION_ATLEAST(2, 0, 0) // auto-detection is only available for SDL2
+	"auto",
+#endif
 	"english", "french", "german", "italian", "spanish", "turkish", "norwegian", "brazilian", NULL
 };
 
-idCVar in_kbd("in_kbd", "english", CVAR_SYSTEM | CVAR_ARCHIVE | CVAR_NOCHEAT, "keyboard layout", kbdNames, idCmdSystem::ArgCompletion_String<kbdNames> );
+static idCVar in_kbd("in_kbd", _in_kbdNames[0], CVAR_SYSTEM | CVAR_ARCHIVE | CVAR_NOCHEAT, "keyboard layout", _in_kbdNames, idCmdSystem::ArgCompletion_String<_in_kbdNames> );
+// TODO: I'd really like to make in_ignoreConsoleKey default to 1, but I guess there would be too much confusion :-/
+static idCVar in_ignoreConsoleKey("in_ignoreConsoleKey", "0", CVAR_SYSTEM | CVAR_ARCHIVE | CVAR_NOCHEAT | CVAR_BOOL,
+		"Console only opens with Shift+Esc, not ` or ^ etc");
+
+static idCVar in_nograb("in_nograb", "0", CVAR_SYSTEM | CVAR_NOCHEAT, "prevents input grabbing");
+static idCVar in_grabKeyboard("in_grabKeyboard", "0", CVAR_SYSTEM | CVAR_ARCHIVE | CVAR_NOCHEAT | CVAR_BOOL,
+		"if enabled, grabs all keyboard input if mouse is grabbed (so keyboard shortcuts from the OS like Alt-Tab or Windows Key won't work)");
+
+// set in handleMouseGrab(), used in Sys_GetEvent() to decide what kind of internal mouse event to generate
+static bool in_relativeMouseMode = true;
+// set in Sys_GetEvent() on window focus gained/lost events
+static bool in_hasFocus = true;
 
 struct kbd_poll_t {
 	int key;
@@ -93,6 +110,204 @@ struct mouse_poll_t {
 
 static idList<kbd_poll_t> kbd_polls;
 static idList<mouse_poll_t> mouse_polls;
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+// for utf8ToISO8859_1() - used for non-ascii text input and Sys_GetLocalizedScancodeName()
+static SDL_iconv_t iconvDesc = (SDL_iconv_t)-1;
+#endif
+
+struct scancodename_t {
+	int sdlScancode;
+	const char* name;
+};
+
+// scancodenames[keynum - K_FIRST_SCANCODE] belongs to keynum
+static scancodename_t scancodemappings[] = {
+	// NOTE: must be kept in sync with the K_SC_* section of keyNum_t in framework/KeyInput.h !
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	#define D3_SC_MAPPING(X) { SDL_SCANCODE_ ## X , "SC_" #X }
+#else // SDL1.2 doesn't have scancodes
+	#define D3_SC_MAPPING(X) { 0 , "SC_" #X }
+#endif
+
+	D3_SC_MAPPING(A), // { SDL_SCANCODE_A, "SC_A" },
+	D3_SC_MAPPING(B),
+	D3_SC_MAPPING(C),
+	D3_SC_MAPPING(D),
+	D3_SC_MAPPING(E),
+	D3_SC_MAPPING(F),
+	D3_SC_MAPPING(G),
+	D3_SC_MAPPING(H),
+	D3_SC_MAPPING(I),
+	D3_SC_MAPPING(J),
+	D3_SC_MAPPING(K),
+	D3_SC_MAPPING(L),
+	D3_SC_MAPPING(M),
+	D3_SC_MAPPING(N),
+	D3_SC_MAPPING(O),
+	D3_SC_MAPPING(P),
+	D3_SC_MAPPING(Q),
+	D3_SC_MAPPING(R),
+	D3_SC_MAPPING(S),
+	D3_SC_MAPPING(T),
+	D3_SC_MAPPING(U),
+	D3_SC_MAPPING(V),
+	D3_SC_MAPPING(W),
+	D3_SC_MAPPING(X),
+	D3_SC_MAPPING(Y),
+	D3_SC_MAPPING(Z),
+	// leaving out SDL_SCANCODE_1 ... _0, we handle them separately already
+	// also return, escape, backspace, tab, space, already handled as keycodes
+	D3_SC_MAPPING(MINUS),
+	D3_SC_MAPPING(EQUALS),
+	D3_SC_MAPPING(LEFTBRACKET),
+	D3_SC_MAPPING(RIGHTBRACKET),
+	D3_SC_MAPPING(BACKSLASH),
+	D3_SC_MAPPING(NONUSHASH),
+	D3_SC_MAPPING(SEMICOLON),
+	D3_SC_MAPPING(APOSTROPHE),
+	D3_SC_MAPPING(GRAVE),
+	D3_SC_MAPPING(COMMA),
+	D3_SC_MAPPING(PERIOD),
+	D3_SC_MAPPING(SLASH),
+	// leaving out lots of key incl. from keypad, we already handle them as normal keys
+	D3_SC_MAPPING(NONUSBACKSLASH),
+	D3_SC_MAPPING(INTERNATIONAL1), /**< used on Asian keyboards, see footnotes in USB doc */
+	D3_SC_MAPPING(INTERNATIONAL2),
+	D3_SC_MAPPING(INTERNATIONAL3), /**< Yen */
+	D3_SC_MAPPING(INTERNATIONAL4),
+	D3_SC_MAPPING(INTERNATIONAL5),
+	D3_SC_MAPPING(INTERNATIONAL6),
+	D3_SC_MAPPING(INTERNATIONAL7),
+	D3_SC_MAPPING(INTERNATIONAL8),
+	D3_SC_MAPPING(INTERNATIONAL9),
+	D3_SC_MAPPING(THOUSANDSSEPARATOR),
+	D3_SC_MAPPING(DECIMALSEPARATOR),
+	D3_SC_MAPPING(CURRENCYUNIT),
+	D3_SC_MAPPING(CURRENCYSUBUNIT)
+
+#undef D3_SC_MAPPING
+};
+
+// for keynums between K_FIRST_SCANCODE and K_LAST_SCANCODE
+// returns e.g. "SC_A" for K_SC_A
+const char* Sys_GetScancodeName( int key ) {
+	if ( key >= K_FIRST_SCANCODE && key <= K_LAST_SCANCODE ) {
+		int scIdx = key - K_FIRST_SCANCODE;
+		return scancodemappings[scIdx].name;
+	}
+	return NULL;
+}
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+static bool isAscii( const char* str_ ) {
+	const unsigned char* str = (const unsigned char*)str_;
+	while(*str != '\0') {
+		if(*str > 127) {
+			return false;
+		}
+		++str;
+	}
+	return true;
+}
+
+// convert inbuf (which is expected to be in UTF-8) to outbuf (in ISO-8859-1)
+static bool utf8ToISO8859_1(const char* inbuf, char* outbuf, size_t outsize) {
+	if ( iconvDesc == (SDL_iconv_t)-1 ) {
+		return false;
+	}
+
+	size_t outbytesleft = outsize;
+	size_t inbytesleft = strlen( inbuf ) + 1; // + terminating \0
+	size_t ret = SDL_iconv( iconvDesc, &inbuf, &inbytesleft, &outbuf, &outbytesleft );
+
+	while(inbytesleft > 0) {
+		switch ( ret ) {
+			case SDL_ICONV_E2BIG:
+				outbuf[outbytesleft-1] = '\0'; // whatever, just cut it off..
+				common->DPrintf( "Cutting off UTF-8 to ISO-8859-1 conversion to '%s' because destination is too small for '%s'\n", outbuf, inbuf );
+				SDL_iconv( iconvDesc, NULL, NULL, NULL, NULL ); // reset descriptor for next conversion
+				return true;
+			case SDL_ICONV_EILSEQ:
+				// try skipping invalid input data
+				++inbuf;
+				--inbytesleft;
+				break;
+			case SDL_ICONV_EINVAL:
+			case SDL_ICONV_ERROR:
+				// we can't recover from this
+				SDL_iconv( iconvDesc, NULL, NULL, NULL, NULL ); // reset descriptor for next conversion
+				return false;
+		}
+	}
+	SDL_iconv( iconvDesc, NULL, NULL, NULL, NULL ); // reset descriptor for next conversion
+	return outbytesleft < outsize; // return false if no char was written
+}
+#endif // SDL2
+
+// returns localized name of the key (between K_FIRST_SCANCODE and K_LAST_SCANCODE),
+// regarding the current keyboard layout - if that name is in ASCII or corresponds
+// to a "High-ASCII" char supported by Doom3.
+// Otherwise return same name as Sys_GetScancodeName()
+// !! Returned string is only valid until next call to this function !!
+const char* Sys_GetLocalizedScancodeName( int key ) {
+	if ( key >= K_FIRST_SCANCODE && key <= K_LAST_SCANCODE ) {
+		int scIdx = key - K_FIRST_SCANCODE;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		SDL_Scancode sc = ( SDL_Scancode ) scancodemappings[scIdx].sdlScancode;
+		SDL_Keycode k = SDL_GetKeyFromScancode( sc );
+		if ( k >= 0xA1 && k <= 0xFF ) {
+			// luckily, the "High-ASCII" (ISO-8559-1) chars supported by Doom3
+			// have the same values as the corresponding SDL_Keycodes.
+			static char oneCharStr[2] = {0, 0};
+			oneCharStr[0] = (unsigned char)k;
+			return oneCharStr;
+		} else if ( k != SDLK_UNKNOWN ) {
+			const char *ret = SDL_GetKeyName( k );
+			// the keyname from SDL2 is in UTF-8, which Doom3 can't print,
+			// so only return the name if it's ASCII, otherwise fall back to "SC_bla"
+			if ( ret && *ret != '\0' ) {
+				if( isAscii( ret ) ) {
+					return ret;
+				}
+				static char isoName[32];
+				// try to convert name to ISO8859-1 (Doom3's supported "High ASCII")
+				if ( utf8ToISO8859_1( ret, isoName, sizeof(isoName) ) && isoName[0] != '\0' ) {
+					return isoName;
+				}
+			}
+		}
+#endif  // SDL1.2 doesn't support this, use unlocalized name (also as fallback if we couldn't get a keyname)
+		return scancodemappings[scIdx].name;
+
+	}
+	return NULL;
+}
+
+// returns keyNum_t (K_SC_* constant) for given scancode name (like "SC_A")
+// only makes sense to call it if name starts with "SC_" (or "sc_")
+// returns -1 if not found
+int Sys_GetKeynumForScancodeName( const char* name ) {
+	for( int scIdx = 0; scIdx < K_NUM_SCANCODES; ++scIdx ) {
+		if ( idStr::Icmp( name, scancodemappings[scIdx].name ) == 0 ) {
+			return scIdx + K_FIRST_SCANCODE;
+		}
+	}
+	return -1;
+}
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+static int getKeynumForSDLscancode( SDL_Scancode scancode ) {
+	int sc = scancode;
+	for ( int scIdx=0; scIdx < K_NUM_SCANCODES; ++scIdx ) {
+		if ( scancodemappings[scIdx].sdlScancode == sc ) {
+			return scIdx + K_FIRST_SCANCODE;
+		}
+	}
+	return 0;
+}
+#endif
 
 static byte mapkey(SDL_Keycode key) {
 	switch (key) {
@@ -132,12 +347,15 @@ static byte mapkey(SDL_Keycode key) {
 		return K_MENU;
 
 	case SDLK_LALT:
-	case SDLK_RALT:
 		return K_ALT;
+	case SDLK_RALT:
+		return K_RIGHT_ALT;
 	case SDLK_RCTRL:
+		return K_RIGHT_CTRL;
 	case SDLK_LCTRL:
 		return K_CTRL;
 	case SDLK_RSHIFT:
+		return K_RIGHT_SHIFT;
 	case SDLK_LSHIFT:
 		return K_SHIFT;
 	case SDLK_INSERT:
@@ -252,6 +470,7 @@ static byte mapkey(SDL_Keycode key) {
 	case SDLK_PRINTSCREEN:
 		return K_PRINT_SCR;
 	case SDLK_MODE:
+		// FIXME: is this really right alt? (also mapping SDLK_RALT to K_RIGHT_ALT)
 		return K_RIGHT_ALT;
 	}
 
@@ -285,12 +504,33 @@ void Sys_InitInput() {
 	kbd_polls.SetGranularity(64);
 	mouse_polls.SetGranularity(64);
 
+	assert(sizeof(scancodemappings)/sizeof(scancodemappings[0]) == K_NUM_SCANCODES && "scancodemappings incomplete?");
+
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
+#else // SDL2 - for utf8ToISO8859_1() (non-ascii text input and key naming)
+	assert(iconvDesc == (SDL_iconv_t)-1);
+	iconvDesc = SDL_iconv_open( "ISO-8859-1", "UTF-8" );
+	if( iconvDesc == (SDL_iconv_t)-1 ) {
+		common->Warning( "Sys_SetInput(): iconv_open( \"ISO-8859-1\", \"UTF-8\" ) failed! Can't translate non-ascii input!\n" );
+	}
 #endif
 
 	in_kbd.SetModified();
+	Sys_GetConsoleKey(false); // initialize consoleKeymappingIdx from in_kbd
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	const char* grabKeyboardEnv = SDL_getenv(SDL_HINT_GRAB_KEYBOARD);
+	if ( grabKeyboardEnv ) {
+		common->Printf( "The SDL_GRAB_KEYBOARD environment variable is set, setting the in_grabKeyboard CVar to the same value (%s)\n", grabKeyboardEnv );
+		in_grabKeyboard.SetString( grabKeyboardEnv );
+	} else {
+		in_grabKeyboard.SetModified();
+	}
+#else // SDL1.2 doesn't support this
+	in_grabKeyboard.ClearModified();
+#endif
 }
 
 /*
@@ -301,6 +541,10 @@ Sys_ShutdownInput
 void Sys_ShutdownInput() {
 	kbd_polls.Clear();
 	mouse_polls.Clear();
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	SDL_iconv_close( iconvDesc ); // used by utf8ToISO8859_1()
+	iconvDesc = ( SDL_iconv_t ) -1; 
+#endif
 }
 
 /*
@@ -314,46 +558,89 @@ void Sys_InitScanTable() {
 }
 #endif
 
+
+struct ConsoleKeyMapping {
+	const char* langName;
+	unsigned char key;
+	unsigned char keyShifted;
+};
+
+static ConsoleKeyMapping consoleKeyMappings[] = {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	{ "auto",   	 0 ,	0   }, // special case: set current keycode for SDL_SCANCODE_GRAVE (no shifted keycode, though)
+#endif
+	{ "english",	'`',	'~' },
+	{ "french", 	'<',	'>' },
+	{ "german", 	'^',	176 }, // °
+	{ "italian",	'\\',	'|' },
+	{ "spanish",	186,	170 }, // º ª
+	{ "turkish",	'"',	233 }, // é
+	{ "norwegian",	124,	167 }, // | §
+	{ "brazilian",	'\'',	'"' },
+};
+static int consoleKeyMappingIdx = 0;
+
+static void initConsoleKeyMapping() {
+	const int numMappings = sizeof(consoleKeyMappings)/sizeof(consoleKeyMappings[0]);
+
+	idStr lang = in_kbd.GetString();
+	consoleKeyMappingIdx = 0;
+
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	consoleKeyMappings[0].key = 0;
+	if ( lang.Length() == 0 || lang.Icmp( "auto") == 0 ) {
+		// auto-detection (SDL2-only)
+		int keycode = SDL_GetKeyFromScancode( SDL_SCANCODE_GRAVE );
+		if ( keycode > 0 && keycode <= 0xFF ) {
+			// the SDL keycode and dhewm3 keycode should be identical for the mappings,
+			// as it's ISO-8859-1 ("High ASCII") chars
+			for( int i=1; i<numMappings; ++i ) {
+				if ( consoleKeyMappings[i].key == keycode ) {
+					consoleKeyMappingIdx = i;
+					common->Printf( "Detected keyboard layout as \"%s\"\n", consoleKeyMappings[i].langName );
+					break;
+				}
+			}
+			if ( consoleKeyMappingIdx == 0 ) { // not found in known mappings
+				consoleKeyMappings[0].key = keycode;
+			}
+		}
+	} else
+#endif
+	{
+		for( int i=1; i<numMappings; ++i ) {
+			if( lang.Icmp( consoleKeyMappings[i].langName ) == 0 ) {
+				consoleKeyMappingIdx = i;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+				int keycode = SDL_GetKeyFromScancode( SDL_SCANCODE_GRAVE );
+				if ( keycode && keycode != consoleKeyMappings[i].key ) {
+					common->Warning( "in_kbd is set to \"%s\", but the actual keycode of the 'console key' is %c (%d), not %c (%d), so this might not work that well..\n",
+							lang.c_str(), (unsigned char)keycode, keycode, consoleKeyMappings[i].key, consoleKeyMappings[i].key );
+				}
+#endif
+				break;
+			}
+		}
+	}
+}
+
 /*
 ===============
 Sys_GetConsoleKey
 ===============
 */
-unsigned char Sys_GetConsoleKey(bool shifted) {
-	static unsigned char keys[2] = { '`', '~' };
+unsigned char Sys_GetConsoleKey( bool shifted ) {
 
-	if (in_kbd.IsModified()) {
-		idStr lang = in_kbd.GetString();
+	if ( in_ignoreConsoleKey.GetBool() ) {
+		return 0;
+	}
 
-		if (lang.Length()) {
-			if (!lang.Icmp("french")) {
-				keys[0] = '<';
-				keys[1] = '>';
-			} else if (!lang.Icmp("german")) {
-				keys[0] = '^';
-				keys[1] = 176; // °
-			} else if (!lang.Icmp("italian")) {
-				keys[0] = '\\';
-				keys[1] = '|';
-			} else if (!lang.Icmp("spanish")) {
-				keys[0] = 186; // º
-				keys[1] = 170; // ª
-			} else if (!lang.Icmp("turkish")) {
-				keys[0] = '"';
-				keys[1] = 233; // é
-			} else if (!lang.Icmp("norwegian")) {
-				keys[0] = 124; // |
-				keys[1] = 167; // §
-			} else if (!lang.Icmp("brazilian")) {
-				keys[0] = '\'';
-				keys[1] = '"';
-			}
-		}
-
+	if ( in_kbd.IsModified() ) {
+		initConsoleKeyMapping();
 		in_kbd.ClearModified();
 	}
 
-	return shifted ? keys[1] : keys[0];
+	return shifted ? consoleKeyMappings[consoleKeyMappingIdx].keyShifted : consoleKeyMappings[consoleKeyMappingIdx].key;
 }
 
 /*
@@ -368,15 +655,13 @@ unsigned char Sys_MapCharForKey(int key) {
 /*
 ===============
 Sys_GrabMouseCursor
+Note: Usually grabbing is handled in idCommonLocal::Frame() -> Sys_GenerateEvents() -> handleMouseGrab()
+      This function should only be used to release the mouse before long operations where
+      common->Frame() won't be called for a while
 ===============
 */
 void Sys_GrabMouseCursor(bool grabIt) {
-	int flags;
-
-	if (grabIt)
-		flags = GRAB_ENABLE | GRAB_HIDECURSOR | GRAB_SETSTATE;
-	else
-		flags = GRAB_SETSTATE;
+	int flags = grabIt ? (GRAB_GRABMOUSE | GRAB_HIDECURSOR | GRAB_RELATIVEMOUSE) : 0;
 
 	GLimp_GrabInput(flags);
 }
@@ -389,7 +674,7 @@ Sys_GetEvent
 sysEvent_t Sys_GetEvent() {
 	SDL_Event ev;
 	sysEvent_t res = { };
-	byte key;
+	int key;
 
 	static const sysEvent_t res_none = { SE_NONE, 0, 0, 0, NULL };
 
@@ -399,7 +684,7 @@ sysEvent_t Sys_GetEvent() {
 
 	if (s[0] != '\0') {
 		res.evType = SE_CHAR;
-		res.evValue = s[s_pos];
+		res.evValue = (unsigned char)s[s_pos];
 
 		++s_pos;
 
@@ -442,15 +727,14 @@ sysEvent_t Sys_GetEvent() {
 					} // new context because visual studio complains about newmod and currentmod not initialized because of the case SDL_WINDOWEVENT_FOCUS_LOST
 
 					
-					common->ActivateTool( false );
-					GLimp_GrabInput(GRAB_ENABLE | GRAB_REENABLE | GRAB_HIDECURSOR); // FIXME: not sure this is still needed after the ActivateTool()-call
+					in_hasFocus = true;
 
 					// start playing the game sound world again (when coming from editor)
 					session->SetPlayingSoundWorld();
 
 					break;
 				case SDL_WINDOWEVENT_FOCUS_LOST:
-					GLimp_GrabInput(0);
+					in_hasFocus = false;
 					break;
 			}
 
@@ -458,10 +742,8 @@ sysEvent_t Sys_GetEvent() {
 #else
 		case SDL_ACTIVEEVENT:
 			{
-				int flags = 0;
-
 				if (ev.active.gain) {
-					flags = GRAB_ENABLE | GRAB_REENABLE | GRAB_HIDECURSOR;
+					in_hasFocus = true;
 
 					// unset modifier, in case alt-tab was used to leave window and ALT is still set
 					// as that can cause fullscreen-toggling when pressing enter...
@@ -471,9 +753,9 @@ sysEvent_t Sys_GetEvent() {
 						newmod |= KMOD_CAPS;
 
 					SDL_SetModState((SDLMod)newmod);
+				} else {
+					in_hasFocus = false;
 				}
-
-				GLimp_GrabInput(flags);
 			}
 
 			continue; // handle next event
@@ -494,15 +776,17 @@ sysEvent_t Sys_GetEvent() {
 #if !SDL_VERSION_ATLEAST(2, 0, 0)
 			key = mapkey(ev.key.keysym.sym);
 			if (!key) {
-				unsigned char c;
-				// check if its an unmapped console key
-				if (ev.key.keysym.unicode == (c = Sys_GetConsoleKey(false))) {
-					key = c;
-				} else if (ev.key.keysym.unicode == (c = Sys_GetConsoleKey(true))) {
-					key = c;
-				} else {
+				if ( !in_ignoreConsoleKey.GetBool() ) {
+					// check if its an unmapped console key
+					int c = Sys_GetConsoleKey( (ev.key.keysym.mod & KMOD_SHIFT) != 0 );
+					if (ev.key.keysym.unicode == c) {
+						key = c;
+					}
+				}
+				if (!key) {
 					if (ev.type == SDL_KEYDOWN)
-						common->Warning("unmapped SDL key %d (0x%x)", ev.key.keysym.sym, ev.key.keysym.unicode);
+						common->Warning( "unmapped SDL key %d (0x%x) - if possible use SDL2 for better keyboard support",
+						                 ev.key.keysym.sym, ev.key.keysym.unicode );
 					continue; // handle next event
 				}
 			}
@@ -528,12 +812,17 @@ sysEvent_t Sys_GetEvent() {
 				key = mapkey(ev.key.keysym.sym);
 			}
 
-			if(!key) {
-				if (ev.key.keysym.scancode == SDL_SCANCODE_GRAVE) { // TODO: always do this check?
-					key = Sys_GetConsoleKey(true);
-				} else {
+			if ( !in_ignoreConsoleKey.GetBool() && ev.key.keysym.scancode == SDL_SCANCODE_GRAVE ) {
+				// that key between Esc, Tab and 1 is the console key
+				key = K_CONSOLE;
+			}
+
+			if ( !key ) {
+				// if the key couldn't be mapped so far, try to map the scancode to K_SC_*
+				key = getKeynumForSDLscancode(sc);
+				if(!key) {
 					if (ev.type == SDL_KEYDOWN) {
-						common->Warning("unmapped SDL key %d", ev.key.keysym.sym);
+						common->Warning("unmapped SDL key %d (scancode %d)", ev.key.keysym.sym, (int)sc);
 					}
 					continue; // handle next event
 				}
@@ -561,14 +850,24 @@ sysEvent_t Sys_GetEvent() {
 		case SDL_TEXTINPUT:
 			if (ev.text.text[0]) {
 				res.evType = SE_CHAR;
-				res.evValue = ev.text.text[0];
 
-				if (ev.text.text[1] != '\0')
-				{
-					memcpy(s, ev.text.text, SDL_TEXTINPUTEVENT_TEXT_SIZE);
-					s_pos = 1; // pos 0 is returned
+				if ( isAscii(ev.text.text) ) {
+					res.evValue = ev.text.text[0];
+					if ( ev.text.text[1] != '\0' ) {
+						memcpy( s, ev.text.text, SDL_TEXTINPUTEVENT_TEXT_SIZE );
+						s_pos = 1; // pos 0 is returned
+					}
+					return res;
+				} else if( utf8ToISO8859_1( ev.text.text, s, sizeof(s) ) && s[0] != '\0' ) {
+					res.evValue = (unsigned char)s[0];
+					if ( s[1] == '\0' ) {
+						s_pos = 0;
+						s[0] = '\0';
+					} else {
+						s_pos = 1; // pos 0 is returned
+					}
+					return res;
 				}
-				return res;
 			}
 
 			continue; // handle next event
@@ -579,12 +878,18 @@ sysEvent_t Sys_GetEvent() {
 #endif
 
 		case SDL_MOUSEMOTION:
-			res.evType = SE_MOUSE;
-			res.evValue = ev.motion.xrel;
-			res.evValue2 = ev.motion.yrel;
+			if ( in_relativeMouseMode ) {
+				res.evType = SE_MOUSE;
+				res.evValue = ev.motion.xrel;
+				res.evValue2 = ev.motion.yrel;
 
-			mouse_polls.Append(mouse_poll_t(M_DELTAX, ev.motion.xrel));
-			mouse_polls.Append(mouse_poll_t(M_DELTAY, ev.motion.yrel));
+				mouse_polls.Append(mouse_poll_t(M_DELTAX, ev.motion.xrel));
+				mouse_polls.Append(mouse_poll_t(M_DELTAY, ev.motion.yrel));
+			} else {
+				res.evType = SE_MOUSE_ABS;
+				res.evValue = ev.motion.x;
+				res.evValue2 = ev.motion.y;
+			}
 
 			return res;
 
@@ -595,7 +900,7 @@ sysEvent_t Sys_GetEvent() {
 			if (ev.wheel.y > 0) {
 				res.evValue = K_MWHEELUP;
 				mouse_polls.Append(mouse_poll_t(M_DELTAZ, 1));
-			} else {
+			} else if (ev.wheel.y < 0) {
 				res.evValue = K_MWHEELDOWN;
 				mouse_polls.Append(mouse_poll_t(M_DELTAZ, -1));
 			}
@@ -693,6 +998,58 @@ void Sys_ClearEvents() {
 	mouse_polls.SetNum(0, false);
 }
 
+static void handleMouseGrab() {
+
+	// these are the defaults for when the window does *not* have focus
+	// (don't grab in any way)
+	bool showCursor = true;
+	bool grabMouse = false;
+	bool relativeMouse = false;
+
+	// if com_editorActive, release everything, just like when we have no focus
+	if ( in_hasFocus && !com_editorActive ) {
+		// Note: this generally handles fullscreen menus, but not the PDA, because the PDA
+		//       is an ugly hack in gamecode that doesn't go through sessLocal.guiActive.
+		//       It goes through weapon input code or sth? That's also the reason only
+		//       leftclick (fire) works there (no mousewheel..)
+		//       So the PDA will continue to use relative mouse events to set its cursor position.
+		const bool menuActive = ( sessLocal.GetActiveMenu() != NULL );
+
+		if ( menuActive ) {
+			showCursor = false;
+			relativeMouse = false;
+			grabMouse = false; // TODO: or still grab to window? (maybe only if in exclusive fullscreen mode?)
+		} else if ( console->Active() ) {
+			showCursor = true;
+			relativeMouse = grabMouse = false;
+		} else { // in game
+			showCursor = false;
+			grabMouse = relativeMouse = true;
+		}
+
+		in_relativeMouseMode = relativeMouse;
+
+		// if in_nograb is set, in_relativeMouseMode and relativeMouse can disagree
+		// (=> don't enable relative mouse mode in SDL, but still use relative mouse events
+		//  in the game, unless we'd use absolute mousemode anyway)
+		if ( in_nograb.GetBool() ) {
+			grabMouse = relativeMouse = false;
+		}
+	} else {
+		in_relativeMouseMode = false;
+	}
+
+	int flags = 0;
+	if ( !showCursor )
+		flags |= GRAB_HIDECURSOR;
+	if ( grabMouse )
+		flags |= GRAB_GRABMOUSE;
+	if ( relativeMouse )
+		flags |= GRAB_RELATIVEMOUSE;
+
+	GLimp_GrabInput( flags );
+}
+
 /*
 ================
 Sys_GenerateEvents
@@ -700,12 +1057,30 @@ Sys_GenerateEvents
 */
 void Sys_GenerateEvents() {
 
+	handleMouseGrab();
+
     #if !defined(__MORPHOS__)
 	char *s = Sys_ConsoleInput();
 
 	if (s)
 		PushConsoleEvent(s);
     #endif
+
+#ifndef ID_DEDICATED // doesn't make sense on dedicated server
+	if ( in_grabKeyboard.IsModified() ) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		SDL_SetHint( SDL_HINT_GRAB_KEYBOARD, in_grabKeyboard.GetString() );
+		if ( in_grabKeyboard.GetBool() ) {
+			common->Printf( "in_grabKeyboard: Will grab the keyboard if mouse is grabbed, so global keyboard-shortcuts (like Alt-Tab or the Windows key) will *not* work\n" );
+		} else {
+			common->Printf( "in_grabKeyboard: Will *not* grab the keyboard if mouse is grabbed, so global keyboard-shortcuts (like Alt-Tab) will still work\n" );
+		}
+#else
+		common->Printf( "Note: SDL1.2 doesn't support in_grabKeyboard (it's always grabbed if mouse is grabbed)\n" );
+#endif
+		in_grabKeyboard.ClearModified();
+	}
+#endif
 
 	SDL_PumpEvents();
 }

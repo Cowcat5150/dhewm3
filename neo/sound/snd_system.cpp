@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "sys/platform.h"
 
 #include "sound/snd_local.h"
+#include <limits.h>
 
 #ifdef ID_DEDICATED
 idCVar idSoundSystemLocal::s_noSound( "s_noSound", "1", CVAR_SOUND | CVAR_BOOL | CVAR_ROM, "" );
@@ -76,6 +77,8 @@ idCVar idSoundSystemLocal::s_decompressionLimit( "s_decompressionLimit", "6", CV
 idCVar idSoundSystemLocal::s_useEAXReverb( "s_useEAXReverb", "0", CVAR_SOUND | CVAR_BOOL | CVAR_ROM, "EFX not available in this build" );
 idCVar idSoundSystemLocal::s_decompressionLimit( "s_decompressionLimit", "6", CVAR_SOUND | CVAR_INTEGER | CVAR_ROM, "specifies maximum uncompressed sample length in seconds" );
 #endif
+
+idCVar idSoundSystemLocal::s_alReverbGain( "s_alReverbGain", "0.5", CVAR_SOUND | CVAR_FLOAT | CVAR_ARCHIVE, "reduce reverb strength (0.0 to 1.0)", 0.0f, 1.0f );
 
 bool idSoundSystemLocal::useEFXReverb = false;
 int idSoundSystemLocal::EFXAvailable = -1;
@@ -433,6 +436,7 @@ void idSoundSystemLocal::Init() {
 			alDeleteAuxiliaryEffectSlots = (LPALDELETEAUXILIARYEFFECTSLOTS)alGetProcAddress("alDeleteAuxiliaryEffectSlots");
 			alIsAuxiliaryEffectSlot = (LPALISAUXILIARYEFFECTSLOT)alGetProcAddress("alIsAuxiliaryEffectSlot");;
 			alAuxiliaryEffectSloti = (LPALAUXILIARYEFFECTSLOTI)alGetProcAddress("alAuxiliaryEffectSloti");
+			alAuxiliaryEffectSlotf = (LPALAUXILIARYEFFECTSLOTF)alGetProcAddress("alAuxiliaryEffectSlotf");
 		} else {
 			common->Printf( "OpenAL: EFX extension not found\n" );
 			EFXAvailable = 0;
@@ -453,6 +457,7 @@ void idSoundSystemLocal::Init() {
 			alDeleteAuxiliaryEffectSlots = NULL;
 			alIsAuxiliaryEffectSlot = NULL;
 			alAuxiliaryEffectSloti = NULL;
+			alAuxiliaryEffectSlotf = NULL;
 		}
 
 		ALuint handle;
@@ -809,7 +814,7 @@ int idSoundSystemLocal::AsyncUpdateWrite( int inTime ) {
 	sampleTime64 = (sampleTime64 + 4) & ~(long long int)7;
 
 	const int sampleTime = sampleTime64 & INT_MAX;
-	
+
 	int numSpeakers = s_numberOfSpeakers.GetInteger();
 
 	// enable audio hardware caching

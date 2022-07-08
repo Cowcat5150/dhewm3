@@ -548,7 +548,6 @@ extern	frameData_t	*frameData;
 
 //=======================================================================
 
-void R_LockSurfaceScene( viewDef_t *parms );
 void R_ClearCommandChain( void );
 void R_AddDrawViewCmd( viewDef_t *parms );
 
@@ -786,6 +785,9 @@ public:
 	performanceCounters_t	pc;					// performance counters
 
 	drawSurfsCommand_t		lockSurfacesCmd;	// use this when r_lockSurfaces = 1
+	//renderView_t			lockSurfacesRenderView;
+	viewDef_t				lockSurfacesViewDef; // of locked position/view
+	viewDef_t				lockSurfacesRealViewDef; // of actual player position
 
 	viewEntity_t			identitySpace;		// can use if we don't know viewDef->worldSpace is valid
 	int						stencilIncr, stencilDecr;	// GL_INCR / INCR_WRAP_EXT, GL_DECR / GL_DECR_EXT
@@ -835,6 +837,7 @@ extern idCVar r_flareSize;				// scale the flare deforms from the material def
 
 extern idCVar r_gamma;					// changes gamma tables
 extern idCVar r_brightness;				// changes gamma tables
+extern idCVar r_gammaInShader;			// set gamma+brightness in shader instead of modifying system gamma tables
 
 extern idCVar r_renderer;				// arb2, etc
 
@@ -1092,6 +1095,8 @@ void		GLimp_SetGamma( unsigned short red[256],
 // These are now taken as 16 bit values, so we can take full advantage
 // of dacs with >8 bits of precision
 
+void		GLimp_ResetGamma();
+// resets the gamma to what it was at startup
 
 // Returns false if the system only has a single processor
 
@@ -1105,10 +1110,9 @@ void		GLimp_DeactivateContext( void );
 // being immediate returns, which lets us guage how much time is
 // being spent inside OpenGL.
 
-const int GRAB_ENABLE		= (1 << 0);
-const int GRAB_REENABLE		= (1 << 1);
-const int GRAB_HIDECURSOR	= (1 << 2);
-const int GRAB_SETSTATE		= (1 << 3);
+const int GRAB_GRABMOUSE	= (1 << 0);
+const int GRAB_HIDECURSOR	= (1 << 1);
+const int GRAB_RELATIVEMOUSE = (1 << 2);
 
 void GLimp_GrabInput(int flags);
 /*

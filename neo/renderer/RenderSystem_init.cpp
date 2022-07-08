@@ -92,6 +92,7 @@ idCVar r_swapInterval( "r_swapInterval", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVA
 
 idCVar r_gamma( "r_gamma", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_FLOAT, "changes gamma tables", 0.5f, 3.0f );
 idCVar r_brightness( "r_brightness", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_FLOAT, "changes gamma tables", 0.5f, 2.0f );
+idCVar r_gammaInShader( "r_gammaInShader", "0", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_BOOL, "Set gamma and brightness in shaders instead using hardware gamma" );
 
 idCVar r_renderer( "r_renderer", "best", CVAR_RENDERER | CVAR_ARCHIVE, "hardware specific renderer path to use", r_rendererArgs, idCmdSystem::ArgCompletion_String<r_rendererArgs> );
 
@@ -401,9 +402,13 @@ static void R_CheckPortableExtensions( void ) {
 	if( glConfig.glVersion >= 2.0) {
 		common->Printf( "... got GL2.0+ glStencilOpSeparate()\n" );
 		qglStencilOpSeparate = (PFNGLSTENCILOPSEPARATEPROC)GLimp_ExtensionPointer( "glStencilOpSeparate" );
+	} else if( R_CheckExtension( "GL_ATI_separate_stencil" ) ) {
+		common->Printf( "... got glStencilOpSeparateATI() (GL_ATI_separate_stencil)\n" );
+		// the ATI version of glStencilOpSeparate() has the same signature and should also
+		// behave identical to the GL2 version (in Mesa3D it's just an alias)
+		qglStencilOpSeparate = (PFNGLSTENCILOPSEPARATEPROC)GLimp_ExtensionPointer( "glStencilOpSeparateATI" );
 	} else {
-		// TODO: there was an extension by ATI providing glStencilOpSeparateATI - do we care?
-		common->Printf( "... don't have GL2.0+ glStencilOpSeparate()\n" );
+		common->Printf( "... don't have glStencilOpSeparateATI() or (GL2.0+) glStencilOpSeparate()\n" );
 		qglStencilOpSeparate = NULL;
 	}
 
@@ -752,7 +757,13 @@ void R_InitOpenGL( void ) {
 	R_InitFrameData();
 
 	// Reset our gamma
-	R_SetColorMappings();
+	r_gammaInShader.ClearModified();
+	if ( r_gammaInShader.GetBool() ) {
+		common->Printf( "Will apply r_gamma and r_brightness in shaders (r_gammaInShader 1)\n" );
+	} else {
+		common->Printf( "Will apply r_gamma and r_brightness in hardware (possibly on all screens; r_gammaInShader 0)\n" );
+		R_SetColorMappings();
+	}
 
 #ifdef _WIN32
 	static bool glCheck = false;
@@ -1779,6 +1790,12 @@ R_SetColorMappings
 ===============
 */
 void R_SetColorMappings( void ) {
+
+	if ( r_gammaInShader.GetBool() ) {
+		// nothing to do here
+		return;
+	}
+
 	int		i, j;
 	float	g, b;
 	int		inf;
@@ -2178,6 +2195,8 @@ idRenderSystemLocal::Shutdown
 void idRenderSystemLocal::Shutdown( void ) {
 	common->Printf( "idRenderSystem::Shutdown()\n" );
 
+	common->SetRefreshOnPrint( false ); // without a renderer there's nothing to refresh
+
 	R_DoneFreeType( );
 
 	if ( glConfig.isInitialized ) {
@@ -2258,9 +2277,16 @@ idRenderSystemLocal::ShutdownOpenGL
 ========================
 */
 void idRenderSystemLocal::ShutdownOpenGL( void ) {
-	// free the context and close the window
+
 	R_ShutdownFrameData();
+
+	// as the input is tied to the window, it should be shut down when the window
+	// is destroyed (relevant when starting a mod which also recreates window)
+	Sys_ShutdownInput();
+
+	// free the context and close the window
 	GLimp_Shutdown();
+
 	glConfig.isInitialized = false;
 }
 

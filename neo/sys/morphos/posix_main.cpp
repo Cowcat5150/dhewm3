@@ -403,6 +403,11 @@ char *Sys_GetClipboardData(void)
 	return NULL;
 }
 
+void Sys_FreeClipboardData( char* data )
+{
+	Sys_Printf( "TODO: Sys_FreeClipboardData\n" );
+}
+
 void Sys_SetClipboardData( const char *string )
 {
 	Sys_Printf( "TODO: Sys_SetClipboardData\n" );

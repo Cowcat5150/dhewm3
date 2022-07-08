@@ -396,6 +396,12 @@ void GLimp_SwapBuffers() {
 #endif
 }
 
+static bool gammaOrigError = false;
+static bool gammaOrigSet = false;
+static unsigned short gammaOrigRed[256];
+static unsigned short gammaOrigGreen[256];
+static unsigned short gammaOrigBlue[256];
+
 /*
 =================
 GLimp_SetGamma
@@ -407,12 +413,47 @@ void GLimp_SetGamma(unsigned short red[256], unsigned short green[256], unsigned
 		return;
 	}
 
+	if ( !gammaOrigSet ) {
+		gammaOrigSet = true;
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		if ( SDL_GetWindowGammaRamp( window, gammaOrigRed, gammaOrigGreen, gammaOrigBlue ) == -1 ) {
+#else
+		if ( SDL_GetGammaRamp( gammaOrigRed, gammaOrigGreen, gammaOrigBlue ) == -1 ) {
+#endif
+			gammaOrigError = true;
+			common->Warning( "Failed to get Gamma Ramp: %s\n", SDL_GetError() );
+		}
+	}
+
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	if (SDL_SetWindowGammaRamp(window, red, green, blue))
 #else
 	if (SDL_SetGammaRamp(red, green, blue))
 #endif
 		common->Warning("Couldn't set gamma ramp: %s", SDL_GetError());
+}
+
+/*
+=================
+GLimp_ResetGamma
+
+Restore original system gamma setting
+=================
+*/
+void GLimp_ResetGamma() {
+	if( gammaOrigError ) {
+		common->Warning( "Can't reset hardware gamma because getting the Gamma Ramp at startup failed!\n" );
+		common->Warning( "You might have to restart the game for gamma/brightness in shaders to work properly.\n" );
+		return;
+	}
+
+	if( gammaOrigSet ) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		SDL_SetWindowGammaRamp( window, gammaOrigRed, gammaOrigGreen, gammaOrigBlue );
+#else
+		SDL_SetGammaRamp( gammaOrigRed, gammaOrigGreen, gammaOrigBlue );
+#endif
+	}
 }
 
 /*
@@ -447,28 +488,17 @@ GLExtension_t GLimp_ExtensionPointer(const char *name) {
 }
 
 void GLimp_GrabInput(int flags) {
-	bool grab = flags & GRAB_ENABLE;
-
-	if (grab && (flags & GRAB_REENABLE))
-		grab = false;
-
-	if (flags & GRAB_SETSTATE)
-		grabbed = grab;
-
-	if (in_nograb.GetBool())
-		grab = false;
-
 	if (!window) {
 		common->Warning("GLimp_GrabInput called without window");
 		return;
 	}
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
-	SDL_SetRelativeMouseMode((grab && (flags & GRAB_HIDECURSOR)) ? SDL_TRUE : SDL_FALSE);
-	//SDL_SetWindowGrab(window, grab ? SDL_TRUE : SDL_FALSE); // this pokes ENV: and seems to not be needed
+	SDL_ShowCursor( (flags & GRAB_HIDECURSOR) ? SDL_DISABLE : SDL_ENABLE );
+	SDL_SetRelativeMouseMode( (flags & GRAB_RELATIVEMOUSE) ? SDL_TRUE : SDL_FALSE );
+	//SDL_SetWindowGrab( window, (flags & GRAB_GRABMOUSE) ? SDL_TRUE : SDL_FALSE );
 #else
-	SDL_ShowCursor(flags & GRAB_HIDECURSOR ? SDL_DISABLE : SDL_ENABLE);
-	SDL_WM_GrabInput(grab ? SDL_GRAB_ON : SDL_GRAB_OFF);
+	SDL_ShowCursor( (flags & GRAB_HIDECURSOR) ? SDL_DISABLE : SDL_ENABLE );
+	SDL_WM_GrabInput( (flags & GRAB_RELATIVEMOUSE) ? SDL_GRAB_ON : SDL_GRAB_OFF );
 #endif
 }
