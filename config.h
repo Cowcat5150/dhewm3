@@ -11,19 +11,27 @@
 #define BUILD_LIBDIR		""
 #define BUILD_DATADIR		""
 
+#define D3_OSTYPE		"morphos"
+#define D3_ARCH			"ppc"
+#define D3_SIZEOFPTR    4
+
 /* #undef HAVE_JPEG_MEM_SRC */
 
 /* #define ID_ENABLE_CURL */
 
 #else
 
-#define BUILD_OS				"linux"
-#define BUILD_CPU				"x86_64"
+#define BUILD_OS        "linux"
+#define BUILD_CPU       "x86_64"
 
 #define BUILD_LIBRARY_SUFFIX	".so"
 
-#define BUILD_LIBDIR			"/usr/local/lib/dhewm3"
-#define BUILD_DATADIR			"/usr/local/share/dhewm3"
+#define BUILD_LIBDIR    "/usr/local/lib/dhewm3"
+#define BUILD_DATADIR   "/usr/local/share/dhewm3"
+
+#define D3_OSTYPE		"linux"
+#define D3_ARCH			"x86_64"
+#define D3_SIZEOFPTR    8
 
 /* #undef HAVE_JPEG_MEM_SRC */
 

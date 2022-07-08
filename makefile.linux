@@ -317,6 +317,10 @@ $(BR)/CollisionModel_rotate.o \
 $(BR)/CollisionModel_trace.o \
 $(BR)/CollisionModel_translate.o \
 \
+$(BR)/debugger.o \
+$(BR)/DebuggerBreakpoint.o \
+$(BR)/DebuggerServer.o \
+\
 $(BR)/dmap.o \
 $(BR)/facebsp.o \
 $(BR)/gldraw.o \
@@ -602,6 +606,17 @@ $(BR)/CollisionModel_rotate.o: neo/cm/CollisionModel_rotate.cpp
 $(BR)/CollisionModel_trace.o: neo/cm/CollisionModel_trace.cpp
 	$(DO_CXX)
 $(BR)/CollisionModel_translate.o: neo/cm/CollisionModel_translate.cpp
+	$(DO_CXX)
+
+#Debugger
+
+$(BR)/debugger.o: neo/tools/debugger/debugger.cpp
+	$(DO_CXX)
+
+$(BR)/DebuggerBreakpoint.o: neo/tools/debugger/DebuggerBreakpoint.cpp
+	$(DO_CXX)
+
+$(BR)/DebuggerServer.o: neo/tools/debugger/DebuggerServer.cpp
 	$(DO_CXX)
 
 #DMAP
