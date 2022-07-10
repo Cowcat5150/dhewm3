@@ -2256,22 +2256,6 @@ idSIMD_Generic::BlendJoints
 */
 void VPCALL idSIMD_Generic::BlendJoints( idJointQuat *joints, const idJointQuat *blendJoints, const float lerp, const int *index, const int numJoints ) {
 	int i;
-
-	// (D3 BFG) - Cowcat
-	if( lerp <= 0.0f )
-	{
-		return;
-	}
-	else if( lerp >= 1.0f )
-	{
-		for( int i = 0; i < numJoints; i++ )
-		{
-			int j = index[i];
-			joints[j] = blendJoints[j];
-		}
-		return;
-	}
-	//
     
 	for ( i = 0; i < numJoints; i++ ) {
 		int j = index[i];
