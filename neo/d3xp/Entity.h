@@ -285,7 +285,8 @@ public:
 							// set a new physics object to be used by this entity
 	void					SetPhysics( idPhysics *phys );
 							// get the physics object used by this entity
-	idPhysics *				GetPhysics( void ) const;
+	//idPhysics *			GetPhysics( void ) const;
+	idPhysics *				GetPhysics( void ) const { return physics; } // TDM -Cowcat
 							// restore physics pointer for save games
 	void					RestorePhysics( idPhysics *phys );
 							// run the physics for this entity
