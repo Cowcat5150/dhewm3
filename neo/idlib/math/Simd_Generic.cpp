@@ -2257,6 +2257,18 @@ idSIMD_Generic::BlendJoints
 void VPCALL idSIMD_Generic::BlendJoints( idJointQuat *joints, const idJointQuat *blendJoints, const float lerp, const int *index, const int numJoints ) {
 	int i;
     
+    // since lerp is a constant, we can special case the two cases if they're true
+	if ( lerp <= 0.0f ) {
+		// this sets joints back to joints. No sense in doing no work, so just return
+		return;
+	}
+
+	if ( lerp >= 1.0f ) {
+		// this copies each q from blendJoints to joints and copies each t from blendJoints to joints
+		memcpy( joints[0].q.ToFloatPtr(), blendJoints[0].q.ToFloatPtr(), sizeof(idJointQuat) * numJoints );
+		return;
+	}
+	
 	for ( i = 0; i < numJoints; i++ ) {
 		int j = index[i];
 		joints[j].q.Slerp( joints[j].q, blendJoints[j].q, lerp );
