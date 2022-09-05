@@ -359,8 +359,6 @@ void RB_T_FillDepthBuffer( const drawSurf_t *surf ) {
 	float		color[4];
 	const srfTriangles_t	*tri;
 
-if ( !(r_showTangentSpace.GetInteger() == 2) ) // disable more vertexcache calls - Cowcat
-{
 	tri = surf->geo;
 	shader = surf->material;
 
@@ -513,7 +511,6 @@ if ( !(r_showTangentSpace.GetInteger() == 2) ) // disable more vertexcache calls
 	if ( shader->GetSort() == SS_SUBVIEW ) {
 		GL_State( GLS_DEPTHFUNC_LESS );
 	}
-} // Cowcat
 }
 
 /*
@@ -776,8 +773,6 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
 		RB_EnterModelDepthHack( surf->space->modelDepthHack );
 	}
 
-if ( !(r_showTangentSpace.GetInteger() == 2) ) // disable more vertexcache calls - Cowcat
-{
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
 	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), reinterpret_cast<void *>(&ac->st) );
@@ -976,8 +971,6 @@ if ( !(r_showTangentSpace.GetInteger() == 2) ) // disable more vertexcache calls
 			GL_TexEnv( GL_MODULATE );
 		}
 	}
-
-} // Cowcat
 
 	// reset polygon offset
 	if ( shader->TestMaterialFlag(MF_POLYGONOFFSET) ) {

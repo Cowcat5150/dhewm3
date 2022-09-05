@@ -738,8 +738,8 @@ RB_ARB_DrawInteractions
 */
 void RB_ARB_DrawInteractions( void )
 {
-	if ( r_showTangentSpace.GetInteger() ) // Cowcat
-		return;
+	//if ( r_showTangentSpace.GetInteger() ) // Cowcat
+		//return;
 
 	for ( viewLight_t *vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
 		RB_RenderViewLight( vLight );

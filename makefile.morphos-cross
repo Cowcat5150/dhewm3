@@ -402,7 +402,7 @@ BASE = $(B)/base.so
 D3XP = $(B)/d3xp.so
 DOOM = $(B)/doom3
 
-LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -lopenal -lSDL2 -lvorbisfile -lvorbis -logg -lpthread -ldll
+LIBS = $(IDLIB) -noixemul -L/gg/usr/local/lib -lopenal -lSDL2 -lpthread -ldll
 
 all: $(IDLIB) $(BASE) $(D3XP) $(DOOM)  
 

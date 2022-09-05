@@ -470,7 +470,8 @@ static void R_CheckPortableExtensions( void ) {
 		qglDepthBoundsEXT = (PFNGLDEPTHBOUNDSEXTPROC)GLimp_ExtensionPointer( "glDepthBoundsEXT" );
 	}
 
-    #if !defined(__MORPHOS__)
+    //#if !defined(__MORPHOS__)
+    #if 0
     // Minimize extensions used - Test for old ARB code.
     glConfig.cubeMapAvailable = false;
     glConfig.envDot3Available = false;
