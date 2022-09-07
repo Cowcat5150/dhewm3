@@ -810,7 +810,7 @@ $(BR)/posix_main.o: neo/sys/morphos/posix_main.cpp
 	$(DO_CXX)
 $(BR)/main.o: neo/sys/morphos/main.cpp
 	$(DO_CXX)
-$(BR)/glimp.o: neo/sys/morphos/glimp.cpp
+$(BR)/glimp.o: neo/sys/glimp.cpp
 	$(DO_CXX)
 $(BR)/edit_stub.o: neo/tools/edit_stub.cpp
 	$(DO_CXX)
