@@ -695,7 +695,7 @@ void R_LinkLightSurf( const drawSurf_t **link, const srfTriangles_t *tri, const 
 
 		// calculate the specular coordinates if we aren't using vertex programs
 		//if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() ) {
-        if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() && tr.backEndRenderer != BE_ARB) { // Cowcat
+        if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() && tr.backEndRenderer != BE_ARB) { // dCowcat
 			R_SpecularTexGen( drawSurf, light->globalLightOrigin, tr.viewDef->renderView.vieworg );
 			// if we failed to allocate space for the specular calculations, drop the surface
 			if ( !drawSurf->dynamicTexCoords ) {
@@ -1218,7 +1218,8 @@ void R_AddDrawSurf( const srfTriangles_t *tri, const viewEntity_t *space, const 
 			tr.viewDef->maxDrawSurfs *= 2;
 		}
 		tr.viewDef->drawSurfs = (drawSurf_t **)R_FrameAlloc( tr.viewDef->maxDrawSurfs * sizeof( tr.viewDef->drawSurfs[0] ) );
-		memcpy( tr.viewDef->drawSurfs, old, count );
+		if ( count > 0 )
+		    memcpy( tr.viewDef->drawSurfs, old, count ); // XXX null pointer passed as argument 2, which is declared to never be null
 	}
 	tr.viewDef->drawSurfs[tr.viewDef->numDrawSurfs] = drawSurf;
 	tr.viewDef->numDrawSurfs++;
