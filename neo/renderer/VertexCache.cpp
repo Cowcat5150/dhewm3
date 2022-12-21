@@ -323,11 +323,11 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 	// copy the data
 	if ( block->vbo ) {
 		qglBindBufferARB( target, block->vbo );
-		//qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
+		qglBufferDataARB( target, (GLsizeiptrARB)size, data, usage );
 
-		// for now this version needs this trick - Cowcat
-		qglBufferDataARB( target, (GLsizeiptrARB)size, 0, usage );
-		qglBufferSubDataARB( target, 0, (GLsizeiptrARB)size, data );
+		// old tinygl needed this trick - Cowcat
+		//qglBufferDataARB( target, (GLsizeiptrARB)size, 0, usage );
+		//qglBufferSubDataARB( target, 0, (GLsizeiptrARB)size, data );
 
 		currentVertexBuffer = block->vbo;
 	} else {
