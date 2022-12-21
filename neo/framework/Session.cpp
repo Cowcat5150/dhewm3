@@ -2522,10 +2522,14 @@ void idSessionLocal::Draw() {
 		// normal drawing for both single and multi player
 		if ( !com_skipGameDraw.GetBool() && GetLocalClientNum() >= 0 ) {
 			// draw the game view
-			int	start = Sys_Milliseconds();
-			gameDraw = game->Draw( GetLocalClientNum() );
-			int end = Sys_Milliseconds();
-			time_gameDraw += ( end - start );	// note time used for com_speeds
+			if ( com_speeds.GetBool() ) { // Cowcat
+			    int	start = Sys_Milliseconds();
+			    gameDraw = game->Draw( GetLocalClientNum() );
+			    int end = Sys_Milliseconds();
+			    time_gameDraw += ( end - start );	// note time used for com_speeds
+			}
+			else
+			    gameDraw = game->Draw( GetLocalClientNum() );
 		}
 		if ( !gameDraw ) {
 			renderSystem->SetColor( colorBlack );
@@ -2882,12 +2886,20 @@ void idSessionLocal::RunGameTic() {
 		lastGameTic++;
 	}
 
+    gameReturn_t    ret;
+    
 	// run the game logic every player move
-	int	start = Sys_Milliseconds();
-	gameReturn_t	ret = game->RunFrame( &cmd );
+	if ( com_speeds.GetBool() ) { // Cowcat
+	    int	start = Sys_Milliseconds();
+	    ret = game->RunFrame( &cmd );
 
-	int end = Sys_Milliseconds();
-	time_gameFrame += end - start;	// note time used for com_speeds
+	    int end = Sys_Milliseconds();
+	    time_gameFrame += end - start;	// note time used for com_speeds
+    }
+    else
+    {
+        ret = game->RunFrame( &cmd );
+    }
 
 	// check for constency failure from a recorded command
 	if ( cmdDemoFile ) {
