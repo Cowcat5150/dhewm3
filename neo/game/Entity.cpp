@@ -2526,10 +2526,12 @@ void idEntity::RestorePhysics( idPhysics *phys ) {
 idEntity::GetPhysics
 ================
 */
+// inlined - TDM
+/*
 idPhysics *idEntity::GetPhysics( void ) const {
 	return physics;
 }
-
+*/
 /*
 ================
 idEntity::RunPhysics
