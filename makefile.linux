@@ -13,9 +13,9 @@ RANLIB = ranlib
 
 PATH_SOURCE = ./
 
-CXX_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security -fpermissive -Wno-class-memaccess
+CXX_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -fpermissive -Wno-class-memaccess
 CXX_FLAGS_BASE = $(CXX_FLAGS) -shared -Wl,-soname,base.so
-CC_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch -Wno-format-security
+CC_FLAGS = -Wall -DNDEBUG -O2 -fvisibility=hidden -fomit-frame-pointer -fno-strict-aliasing -Wno-sign-compare -Wno-switch
 
 CXX_INCLUDES = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I/usr/include/SDL2 -I/usr/include/AL
 CXX_INCLUDES_BASE = -I$(PATH_SOURCE) -I$(PATH_SOURCE)neo -I$(PATH_SOURCE)neo/game -I/usr/include/SDL2

@@ -456,11 +456,12 @@ static void R_CheckPortableExtensions( void ) {
 		}
 	}
 
-    #if !defined(__MORPHOS__)
+    //#if !defined(__MORPHOS__)
+    #if 1
 	// check for minimum set
 	if ( !glConfig.multitextureAvailable || !glConfig.textureEnvCombineAvailable || !glConfig.cubeMapAvailable
 		|| !glConfig.envDot3Available ) {
-			common->Error( common->GetLanguageDict()->GetString( "#str_06780" ) );
+			common->Error( "%s", common->GetLanguageDict()->GetString( "#str_06780" ) );
 	}
     #endif
 

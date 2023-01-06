@@ -476,7 +476,7 @@ idCVar	idFileSystemLocal::fs_cdpath( "fs_cdpath", "", CVAR_SYSTEM | CVAR_INIT, "
 idCVar	idFileSystemLocal::fs_devpath( "fs_devpath", "", CVAR_SYSTEM | CVAR_INIT, "" );
 idCVar	idFileSystemLocal::fs_game( "fs_game", "", CVAR_SYSTEM | CVAR_INIT | CVAR_SERVERINFO, "mod path" );
 idCVar  idFileSystemLocal::fs_game_base( "fs_game_base", "", CVAR_SYSTEM | CVAR_INIT | CVAR_SERVERINFO, "alternate mod path, searched after the main fs_game path, before the basedir" );
-#if defined(__AROS__) || defined(WIN32) || defined(__MORPHOS__)
+#if defined(__AROS__) || defined(WIN32)
 idCVar	idFileSystemLocal::fs_caseSensitiveOS( "fs_caseSensitiveOS", "0", CVAR_SYSTEM | CVAR_BOOL, "" );
 #else
 idCVar	idFileSystemLocal::fs_caseSensitiveOS( "fs_caseSensitiveOS", "1", CVAR_SYSTEM | CVAR_BOOL, "" );
@@ -1986,7 +1986,7 @@ void idFileSystemLocal::Path_f( const idCmdArgs &args ) {
 				} else {
 					status += ")\n";
 				}
-				common->Printf( status.c_str() );
+				common->Printf( "%s", status.c_str() );
 			} else {
 				common->Printf( "%s (%i files)\n", sp->pack->pakFilename.c_str(), sp->pack->numfiles );
 			}
@@ -3682,7 +3682,7 @@ void idFileSystemLocal::FindDLL( const char *name, char _dllPath[ MAX_OSPATH ] )
 	} else {
 		dllPath = "";
 	}
-	idStr::snPrintf( _dllPath, MAX_OSPATH, dllPath.c_str() );
+	idStr::snPrintf( _dllPath, MAX_OSPATH, "%s", dllPath.c_str() );
 }
 
 /*
