@@ -2372,8 +2372,7 @@ inline float FastScalarInvSqrt( float f ) {
 
 void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuats, const idJointMat *jointMats, const int numJoints ) {
 
-	//#if !defined(__MORPHOS__)
-	#if 1
+	#if 0
     
 	int i;
 
@@ -2397,9 +2396,9 @@ void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuat
 		float		trace;
 		float		s;
 		float		t;
-		int		i;
-		int		j;
-		int		k;
+		int         i;
+		int         j;
+		int         k;
 
 		static int	next[3] = { 1, 2, 0 };
 
@@ -2409,7 +2408,8 @@ void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuat
 		if ( trace > 0.0f ) {
 
 			t = trace + 1.0f;
-			s = FastScalarInvSqrt( t ) * 0.5f;
+            s = idMath::InvSqrt( t ) * 0.5f;
+			//s = FastScalarInvSqrt( t ) * 0.5f; // try this on G5
             
 			jq.q[3] = s * t;
 			jq.q[0] = ( mat[1 * 4 + 2] - mat[2 * 4 + 1] ) * s;
@@ -2429,7 +2429,8 @@ void VPCALL idSIMD_Generic::ConvertJointMatsToJointQuats( idJointQuat *jointQuat
 			k = next[j];
 
 			t = ( mat[i * 4 + i] - ( mat[j * 4 + j] + mat[k * 4 + k] ) ) + 1.0f;
-			s = FastScalarInvSqrt( t ) * 0.5f;
+			s = idMath::InvSqrt( t ) * 0.5f;
+			//s = FastScalarInvSqrt( t ) * 0.5f; // try this on G5
             
 			jq.q[i] = s * t;
 			jq.q[3] = ( mat[j * 4 + k] - mat[k * 4 + j] ) * s;
