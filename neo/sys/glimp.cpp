@@ -109,6 +109,7 @@ static SDL_Surface *window = NULL;
 
 static void SetSDLIcon()
 {
+#ifndef __MORPHOS__
 	Uint32 rmask, gmask, bmask, amask;
 
 	// ok, the following is pretty stupid.. SDL_CreateRGBSurfaceFrom() pretends to use a void* for the data,
@@ -138,6 +139,7 @@ static void SetSDLIcon()
 #endif
 
 	SDL_FreeSurface(icon);
+#endif
 }
 
 /*

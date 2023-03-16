@@ -26,8 +26,6 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <dos/dosextens.h>
-#include <proto/dos.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -43,9 +41,14 @@ If you have questions concerning this license or the applicable additional terms
 #include "sys/posix/posix_public.h"
 #include "sys/sys_local.h"
 
-#include <locale.h>
+#include <dos/dosextens.h>
+#include <proto/dos.h>
+#include <proto/exec.h>
+//#include <locale.h>
 
-static char path_argv[MAX_OSPATH];
+//static char path_argv[MAX_OSPATH];
+
+struct Library *SocketBase;
 
 extern "C"
 {
@@ -53,115 +56,6 @@ extern "C"
 }
 
 #define DEFAULT_PATH ""
-
-#if 0
-
-bool Sys_GetPath(sysPath_t type, idStr &path) {
-	const char *s;
-	char buf[MAX_OSPATH];
-	char buf2[MAX_OSPATH];
-	struct stat st;
-	size_t len;
-
-	path.Clear();
-
-	switch(type) {
-	case PATH_BASE:
-		if (stat(BUILD_DATADIR, &st) != -1 && S_ISDIR(st.st_mode)) {
-			path = BUILD_DATADIR;
-			return true;
-		}
-
-		common->Warning("base path '" BUILD_DATADIR "' does not exist");
-
-		// try next to the executable..
-		if (Sys_GetPath(PATH_EXE, path)) {
-			path = path.StripFilename();
-			// the path should have a base dir in it, otherwise it probably just contains the executable
-			idStr testPath = path + "/" BASE_GAMEDIR;
-			if (stat(testPath.c_str(), &st) != -1 && S_ISDIR(st.st_mode)) {
-				common->Warning("using path of executable: %s", path.c_str());
-				return true;
-			} else {
-				idStr testPath = path + "/demo/demo00.pk4";
-				if(stat(testPath.c_str(), &st) != -1 && S_ISREG(st.st_mode)) {
-					common->Warning("using path of executable (seems to contain demo game data): %s", path.c_str());
-					return true;
-				} else {
-					path.Clear();
-				}
-			}
-		}
-
-		#if 0
-		// fallback to vanilla doom3 install
-		if (stat(LINUX_DEFAULT_PATH, &st) != -1 && S_ISDIR(st.st_mode)) {
-			common->Warning("using hardcoded default base path: " LINUX_DEFAULT_PATH);
-
-			path = LINUX_DEFAULT_PATH;
-			return true;
-		}
-		#else // Cowcat
-		if (stat(DEFAULT_PATH, &st) != -1 && S_ISDIR(st.st_mode)) {
-			common->Warning("using hardcoded default base path: " DEFAULT_PATH);
-
-			path = DEFAULT_PATH;
-			return true;
-		}
-
-		#endif
-
-		return false;
-
-	case PATH_CONFIG:
-		s = getenv("XDG_CONFIG_HOME");
-		if (s)
-			idStr::snPrintf(buf, sizeof(buf), "%s/dhewm3", s);
-		else
-			idStr::snPrintf(buf, sizeof(buf), "%s/.config/dhewm3", getenv("HOME"));
-
-		path = buf;
-		return true;
-
-	case PATH_SAVE:
-		s = getenv("XDG_DATA_HOME");
-		if (s)
-			idStr::snPrintf(buf, sizeof(buf), "%s/dhewm3", s);
-		else
-			idStr::snPrintf(buf, sizeof(buf), "%s/.local/share/dhewm3", getenv("HOME"));
-
-		path = buf;
-		return true;
-
-	case PATH_EXE:
-
-		#if !defined(__MORPHOS__)
-
-		idStr::snPrintf(buf, sizeof(buf), "/proc/%d/exe", getpid());
-		len = readlink(buf, buf2, sizeof(buf2));
-		if (len != -1) {
-			if (len < MAX_OSPATH) {
-				buf2[len] = '\0';
-			} else {
-				buf2[MAX_OSPATH - 1] = '\0';
-			}
-			path = buf2;
-			return true;
-		}
-		#endif
-
-		if (path_argv[0] != 0) {
-			path = path_argv;
-			return true;
-		}
-
-		return false;
-	}
-
-	return false;
-}
-
-#else
 
 bool Sys_GetPath(sysPath_t type, idStr &path)
 {
@@ -209,8 +103,6 @@ bool Sys_GetPath(sysPath_t type, idStr &path)
 
 	return false;
 }
-
-#endif
 
 
 /*
@@ -289,47 +181,6 @@ Sys_OpenURL
 =================
 */
 void idSysLocal::OpenURL( const char *url, bool quit ) {
-#if 0
-	const char	*script_path;
-	idFile		*script_file;
-	char		cmdline[ 1024 ];
-
-	static bool	quit_spamguard = false;
-
-	if ( quit_spamguard ) {
-		common->DPrintf( "Sys_OpenURL: already in a doexit sequence, ignoring %s\n", url );
-		return;
-	}
-
-	common->Printf( "Open URL: %s\n", url );
-	// opening an URL on *nix can mean a lot of things ..
-	// just spawn a script instead of deciding for the user :-)
-
-	// look in the savepath first, then in the basepath
-	script_path = fileSystem->BuildOSPath( cvarSystem->GetCVarString( "fs_savepath" ), "", "openurl.sh" );
-	script_file = fileSystem->OpenExplicitFileRead( script_path );
-	if ( !script_file ) {
-		script_path = fileSystem->BuildOSPath( cvarSystem->GetCVarString( "fs_basepath" ), "", "openurl.sh" );
-		script_file = fileSystem->OpenExplicitFileRead( script_path );
-	}
-	if ( !script_file ) {
-		common->Printf( "Can't find URL script 'openurl.sh' in either savepath or basepath\n" );
-		common->Printf( "OpenURL '%s' failed\n", url );
-		return;
-	}
-	fileSystem->CloseFile( script_file );
-
-	// if we are going to quit, only accept a single URL before quitting and spawning the script
-	if ( quit ) {
-		quit_spamguard = true;
-	}
-
-	common->Printf( "URL script: %s\n", script_path );
-
-	// StartProcess is going to execute a system() call with that - hence the &
-	idStr::snPrintf( cmdline, 1024, "%s '%s' &",  script_path, url );
-	sys->StartProcess( cmdline, quit );
-#endif
 }
 
 /*
@@ -337,8 +188,6 @@ void idSysLocal::OpenURL( const char *url, bool quit ) {
 main
 ===============
 */
-
-struct Library *SocketBase;
 
 int main(int argc, char **argv)
 {

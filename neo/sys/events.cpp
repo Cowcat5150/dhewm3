@@ -1059,12 +1059,12 @@ void Sys_GenerateEvents() {
 
 	handleMouseGrab();
 
-    #if !defined(__MORPHOS__)
+#if !defined(__MORPHOS__)
+
 	char *s = Sys_ConsoleInput();
 
 	if (s)
 		PushConsoleEvent(s);
-    #endif
 
 #ifndef ID_DEDICATED // doesn't make sense on dedicated server
 	if ( in_grabKeyboard.IsModified() ) {
@@ -1082,6 +1082,7 @@ void Sys_GenerateEvents() {
 	}
 #endif
 
+#endif
 	SDL_PumpEvents();
 }
 
