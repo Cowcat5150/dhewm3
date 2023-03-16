@@ -779,7 +779,7 @@ static ID_INLINE bool isDirSeparator( int c )
 	if ( c == '\\' ) {
 		return true;
 	}
-#elif defined(__AROS__)
+#elif defined(__AROS__) || defined(__MORPHOS__)
 	if ( c == ':' ) {
 		return true;
 	}
