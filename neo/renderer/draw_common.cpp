@@ -1616,7 +1616,7 @@ void RB_STD_FogAllLights( void ) {
 		return;
 	}
 
-	qglDisable( GL_STENCIL_TEST );
+	//qglDisable( GL_STENCIL_TEST ); // not here ? Cowcat
 
 	for ( vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
 		backEnd.vLight = vLight;
@@ -1650,15 +1650,18 @@ void RB_STD_FogAllLights( void ) {
 		}
 #endif
 
+        qglDisable( GL_STENCIL_TEST ); // here ? Cowcat
+        
 		if ( vLight->lightShader->IsFogLight() ) {
 			RB_FogPass( vLight->globalInteractions, vLight->localInteractions );
 		} else if ( vLight->lightShader->IsBlendLight() ) {
 			RB_BlendLight( vLight->globalInteractions, vLight->localInteractions );
 		}
-		qglDisable( GL_STENCIL_TEST );
+		//qglDisable( GL_STENCIL_TEST );
 	}
 
-	qglEnable( GL_STENCIL_TEST );
+    if ( r_shadows.GetBool() ) // Cowcat
+        qglEnable( GL_STENCIL_TEST );
 }
 
 //=========================================================================================

@@ -286,7 +286,7 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
 	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
-
+	
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
 
 	//-----------------------------------------------------
@@ -329,14 +329,12 @@ static void RB_ARB_DrawInteraction( const drawInteraction_t *din )
 	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[0].ToFloatPtr() );
 	qglTexGenfv( GL_T, GL_OBJECT_PLANE, din->lightProjection[1].ToFloatPtr() );
 	qglTexGenfv( GL_Q, GL_OBJECT_PLANE, din->lightProjection[2].ToFloatPtr() );
-
 	din->lightImage->Bind();
 
 	// texture 2 will get the light falloff texture
 	GL_SelectTexture( 2 );
 	qglEnable( GL_TEXTURE_GEN_S );
 	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[3].ToFloatPtr() );
-
 	din->lightFalloffImage->Bind();
 
 	// draw it
@@ -377,13 +375,12 @@ it is set to lessThan for blended transparent surfaces
 */
 static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 {
-	//const drawSurf_t        *surf = din->surf;
+	//const drawSurf_t	*surf = din->surf;
 	const srfTriangles_t	*tri = din->surf->geo;
 
 	// set the vertex arrays, which may not all be enabled on a given pass
 	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
 	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
-	GL_SelectTexture( 0 );
 	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 	qglColor3f( 1, 1, 1 );
 
@@ -495,32 +492,13 @@ static void RB_ARB_DrawThreeTextureInteraction( const drawInteraction_t *din )
 	GL_SelectTexture( 2 );
 	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
 	qglEnable( GL_TEXTURE_GEN_S );
-	qglEnable( GL_TEXTURE_GEN_T );
-	qglEnable( GL_TEXTURE_GEN_Q );
-
 	qglTexGenfv( GL_S, GL_OBJECT_PLANE, din->lightProjection[3].ToFloatPtr() );
-
-	idVec4	plane;
-	plane[0] = 0;
-	plane[1] = 0;
-	plane[2] = 0;
-	plane[3] = 0.5;
-	qglTexGenfv( GL_T, GL_OBJECT_PLANE, plane.ToFloatPtr() );
-
-	plane[0] = 0;
-	plane[1] = 0;
-	plane[2] = 0;
-	plane[3] = 1;
-	qglTexGenfv( GL_Q, GL_OBJECT_PLANE, plane.ToFloatPtr() );
-
 	din->lightFalloffImage->Bind();
 
 	// draw it
 	RB_DrawElementsWithCounters( tri );
 
 	qglDisable( GL_TEXTURE_GEN_S );
-	qglDisable( GL_TEXTURE_GEN_T );
-	qglDisable( GL_TEXTURE_GEN_Q );
 	globalImages->BindNull();
 
 	GL_SelectTexture( 1 );
@@ -596,24 +574,14 @@ RB_CreateDrawInteractions
 */
 static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 {
-	if ( !surf ) {
+	if ( !surf )
 		return;
-	}
 
 	// force a space calculation
 	backEnd.currentSpace = NULL;
 
-	if ( backEnd.viewDef->numClipPlanes ) { // keep this here until TexGen is fixed.
-		GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
-	}
-
-	else {
-		GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
-	}
-
 	if ( !r_usedrawinteraction0.GetBool() )
 	{
-
 		if ( r_useTripleTextureARB.GetBool() && glConfig.maxTextureUnits >= 3 )
 		{
 			for ( ; surf ; surf = surf->nextOnLight )
@@ -625,6 +593,8 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 
 		else
 		{
+			GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+
 			for ( ; surf ; surf = surf->nextOnLight )
 			{
 				// break it up into multiple primitive draw interactions if necessary
@@ -635,6 +605,12 @@ static void RB_CreateDrawInteractions( const drawSurf_t *surf )
 
 	else
 	{
+		if ( backEnd.viewDef->numClipPlanes ) // keep this here until TexGen is fixed.
+			GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+		
+		else
+			GL_State( GLS_SRCBLEND_DST_ALPHA | GLS_DSTBLEND_ONE | GLS_ALPHAMASK | GLS_DEPTHMASK | backEnd.depthFunc );
+
 		for ( ; surf ; surf = surf->nextOnLight )
 		{
 			// break it up into multiple primitive draw interactions if necessary
@@ -663,8 +639,7 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 		return;
 	}
 
-	if ( !vLight->localInteractions && !vLight->globalInteractions &&
-		!vLight->translucentInteractions ) {
+	if ( !vLight->localInteractions && !vLight->globalInteractions && !vLight->translucentInteractions ) {
 		return;
 	}
 
@@ -717,7 +692,6 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 	
 	else
 	{
-		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 		RB_CreateDrawInteractions( vLight->localInteractions );
 		RB_CreateDrawInteractions( vLight->globalInteractions );
 
@@ -727,6 +701,8 @@ static void RB_RenderViewLight( viewLight_t *vLight )
 
 		backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
 		RB_CreateDrawInteractions( vLight->translucentInteractions );
+
+		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 	}
 }
 

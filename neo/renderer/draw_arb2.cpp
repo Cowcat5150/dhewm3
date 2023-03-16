@@ -240,7 +240,8 @@ RB_ARB2_DrawInteractions
 ==================
 */
 void RB_ARB2_DrawInteractions( void ) {
-	viewLight_t		*vLight;
+
+	viewLight_t	*vLight;
 
 	GL_SelectTexture( 0 );
 	qglDisableClientState( GL_TEXTURE_COORD_ARRAY );
@@ -249,70 +250,101 @@ void RB_ARB2_DrawInteractions( void ) {
 	// for each light, perform adding and shadowing
 	//
 	for ( vLight = backEnd.viewDef->viewLights ; vLight ; vLight = vLight->next ) {
+
 		backEnd.vLight = vLight;
 
 		// do fogging later
 		if ( vLight->lightShader->IsFogLight() ) {
 			continue;
 		}
+		
 		if ( vLight->lightShader->IsBlendLight() ) {
 			continue;
 		}
 
-		if ( !vLight->localInteractions && !vLight->globalInteractions
-			&& !vLight->translucentInteractions ) {
+		if ( !vLight->localInteractions && !vLight->globalInteractions && !vLight->translucentInteractions ) {
 			continue;
 		}
 
-		// clear the stencil buffer if needed
-		if ( vLight->globalShadows || vLight->localShadows ) {
-			backEnd.currentScissor = vLight->scissorRect;
-			if ( r_useScissor.GetBool() ) {
-				qglScissor( backEnd.viewDef->viewport.x1 + backEnd.currentScissor.x1,
+		if ( r_shadows.GetBool() ) // Cowcat
+		{
+			// clear the stencil buffer if needed
+			if ( vLight->globalShadows || vLight->localShadows )
+			{
+				backEnd.currentScissor = vLight->scissorRect;
+	
+				if ( r_useScissor.GetBool() ) {
+					qglScissor( backEnd.viewDef->viewport.x1 + backEnd.currentScissor.x1,
 					backEnd.viewDef->viewport.y1 + backEnd.currentScissor.y1,
 					backEnd.currentScissor.x2 + 1 - backEnd.currentScissor.x1,
 					backEnd.currentScissor.y2 + 1 - backEnd.currentScissor.y1 );
+				}
+
+				qglClear( GL_STENCIL_BUFFER_BIT );
 			}
-			qglClear( GL_STENCIL_BUFFER_BIT );
-		} else {
-			// no shadows, so no need to read or write the stencil buffer
-			// we might in theory want to use GL_ALWAYS instead of disabling
-			// completely, to satisfy the invarience rules
+
+			else
+			{
+				// no shadows, so no need to read or write the stencil buffer
+				// we might in theory want to use GL_ALWAYS instead of disabling
+				// completely, to satisfy the invarience rules
+				qglStencilFunc( GL_ALWAYS, 128, 255 );
+			}
+
+			if ( r_useShadowVertexProgram.GetBool() )
+			{
+				qglEnable( GL_VERTEX_PROGRAM_ARB );
+				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
+				RB_StencilShadowPass( vLight->globalShadows );
+				RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
+				qglEnable( GL_VERTEX_PROGRAM_ARB );
+				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
+				RB_StencilShadowPass( vLight->localShadows );
+				RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
+				qglDisable( GL_VERTEX_PROGRAM_ARB );	// if there weren't any globalInteractions, it would have stayed on
+			}
+
+			else
+			{
+				RB_StencilShadowPass( vLight->globalShadows );
+				RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
+				RB_StencilShadowPass( vLight->localShadows );
+				RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
+			}
+
+			// translucent surfaces never get stencil shadowed
+			if ( r_skipTranslucent.GetBool() ) {
+				continue;
+			}
+
 			qglStencilFunc( GL_ALWAYS, 128, 255 );
+
+			backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
+			RB_ARB2_CreateDrawInteractions( vLight->translucentInteractions );
+
+			backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 		}
 
-		if ( r_useShadowVertexProgram.GetBool() ) {
-			qglEnable( GL_VERTEX_PROGRAM_ARB );
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
-			RB_StencilShadowPass( vLight->globalShadows );
+		else
+		{
 			RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
-			qglEnable( GL_VERTEX_PROGRAM_ARB );
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
-			RB_StencilShadowPass( vLight->localShadows );
 			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
-			qglDisable( GL_VERTEX_PROGRAM_ARB );	// if there weren't any globalInteractions, it would have stayed on
-		} else {
-			RB_StencilShadowPass( vLight->globalShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
-			RB_StencilShadowPass( vLight->localShadows );
-			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
+
+			// translucent surfaces never get stencil shadowed
+			if ( r_skipTranslucent.GetBool() ) {
+				continue;
+			}
+
+			backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
+			RB_ARB2_CreateDrawInteractions( vLight->translucentInteractions );
+
+			backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 		}
-
-		// translucent surfaces never get stencil shadowed
-		if ( r_skipTranslucent.GetBool() ) {
-			continue;
-		}
-
-		qglStencilFunc( GL_ALWAYS, 128, 255 );
-
-		backEnd.depthFunc = GLS_DEPTHFUNC_LESS;
-		RB_ARB2_CreateDrawInteractions( vLight->translucentInteractions );
-
-		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 	}
 
 	// disable stencil shadow test
-	qglStencilFunc( GL_ALWAYS, 128, 255 );
+	if ( r_shadows.GetBool() ) // Cowcat
+		qglStencilFunc( GL_ALWAYS, 128, 255 );
 
 	GL_SelectTexture( 0 );
 	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
