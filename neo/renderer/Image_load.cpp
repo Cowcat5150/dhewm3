@@ -1857,9 +1857,11 @@ void idImage::CopyFramebuffer( int x, int y, int imageWidth, int imageHeight, bo
 	potWidth = MakePowerOfTwo( imageWidth );
 	potHeight = MakePowerOfTwo( imageHeight );
 
+    #if 0 // disabled - workaround for grabber (d3xp) - Cowcat
 	GetDownsize( imageWidth, imageHeight );
 	GetDownsize( potWidth, potHeight );
-
+    #endif
+    
 	qglReadBuffer( GL_BACK );
 
 	// only resize if the current dimensions can't hold it at all,
