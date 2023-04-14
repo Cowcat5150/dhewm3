@@ -565,7 +565,7 @@ void idRenderWorldLocal::CreateLightDefInteractions( idRenderLightLocal *ldef ) 
 			if ( tr.viewDef && edef->viewCount != tr.viewCount ) {
 				// if the light doesn't cast shadows, skip
 				//if ( !ldef->lightShader->LightCastsShadows() ) {
-				if ( lightCastsShadows ) { // Cowcat
+				if ( !lightCastsShadows ) { // Cowcat
 					continue;
 				}
 				// if we are suppressing its shadow in this view, skip
