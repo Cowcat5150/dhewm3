@@ -267,7 +267,7 @@ void RB_FinishStageTexturing( const shaderStage_t *pStage, const drawSurf_t *sur
 		qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 	}
 
-	if ( pStage->texture.texgen == TG_SCREEN || pStage->texture.texgen == TG_SCREEN ) {
+	if ( pStage->texture.texgen == TG_SCREEN || pStage->texture.texgen == TG_SCREEN2 ) {
 		qglDisable( GL_TEXTURE_GEN_S );
 		qglDisable( GL_TEXTURE_GEN_T );
 		qglDisable( GL_TEXTURE_GEN_Q );
@@ -317,7 +317,7 @@ void RB_FinishStageTexturing( const shaderStage_t *pStage, const drawSurf_t *sur
 			qglDisable( GL_FRAGMENT_PROGRAM_ARB );
 			qglDisable( GL_VERTEX_PROGRAM_ARB );
 			// Fixme: Hack to get around an apparent bug in ATI drivers.  Should remove as soon as it gets fixed.
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, 0 );
+			//qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, 0 );
 		} else {
 			qglDisable( GL_TEXTURE_GEN_S );
 			qglDisable( GL_TEXTURE_GEN_T );
@@ -873,7 +873,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
 			qglDisable( GL_VERTEX_PROGRAM_ARB );
 			qglDisable( GL_FRAGMENT_PROGRAM_ARB );
 			// Fixme: Hack to get around an apparent bug in ATI drivers.  Should remove as soon as it gets fixed.
-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, 0 );
+			//qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, 0 );
 
 			qglDisableClientState( GL_COLOR_ARRAY );
 			qglDisableVertexAttribArrayARB( 9 );
