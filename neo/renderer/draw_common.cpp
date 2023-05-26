@@ -100,7 +100,7 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
 	if ( pStage->texture.texgen == TG_SKYBOX_CUBE || pStage->texture.texgen == TG_WOBBLESKY_CUBE ) {
 		qglTexCoordPointer( 3, GL_FLOAT, 0, vertexCache.Position( surf->dynamicTexCoords ) );
 	}
-	if ( pStage->texture.texgen == TG_SCREEN ) {
+	if ( pStage->texture.texgen == TG_SCREEN || pStage->texture.texgen == TG_SCREEN2 ) { // used in Material.cpp ? - Cowcat
 		qglEnable( GL_TEXTURE_GEN_S );
 		qglEnable( GL_TEXTURE_GEN_T );
 		qglEnable( GL_TEXTURE_GEN_Q );
@@ -127,6 +127,7 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
 		qglTexGenfv( GL_Q, GL_OBJECT_PLANE, plane );
 	}
 
+    #if 0
 	if ( pStage->texture.texgen == TG_SCREEN2 ) {
 		qglEnable( GL_TEXTURE_GEN_S );
 		qglEnable( GL_TEXTURE_GEN_T );
@@ -153,8 +154,9 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
 		plane[3] = mat[15];
 		qglTexGenfv( GL_Q, GL_OBJECT_PLANE, plane );
 	}
-
-	if ( pStage->texture.texgen == TG_GLASSWARP ) {
+    #endif
+    
+	if ( pStage->texture.texgen == TG_GLASSWARP ) { // never used ? - Cowcat
 		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
 			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_GLASSWARP );
 			qglEnable( GL_FRAGMENT_PROGRAM_ARB );
@@ -265,17 +267,18 @@ void RB_FinishStageTexturing( const shaderStage_t *pStage, const drawSurf_t *sur
 		qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), (void *)&ac->st );
 	}
 
-	if ( pStage->texture.texgen == TG_SCREEN ) {
+	if ( pStage->texture.texgen == TG_SCREEN || pStage->texture.texgen == TG_SCREEN ) {
 		qglDisable( GL_TEXTURE_GEN_S );
 		qglDisable( GL_TEXTURE_GEN_T );
 		qglDisable( GL_TEXTURE_GEN_Q );
 	}
+	#if 0
 	if ( pStage->texture.texgen == TG_SCREEN2 ) {
 		qglDisable( GL_TEXTURE_GEN_S );
 		qglDisable( GL_TEXTURE_GEN_T );
 		qglDisable( GL_TEXTURE_GEN_Q );
 	}
-
+    #endif
 	if ( pStage->texture.texgen == TG_GLASSWARP ) {
 		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
 			GL_SelectTexture( 2 );
