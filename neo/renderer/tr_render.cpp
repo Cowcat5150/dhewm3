@@ -332,7 +332,8 @@ void RB_GetShaderTextureMatrix( const float *shaderRegisters,
 
 	// we attempt to keep scrolls from generating incredibly large texture values, but
 	// center rotations and center scales can still generate offsets that need to be > 1
-	if ( matrix[12] < -40 || matrix[12] > 40 ) {
+	//if ( matrix[12] < -40 || matrix[12] > 40 ) {
+	if ( fabs( matrix[12] ) > 40 ) { // Cowcat
 		matrix[12] -= (int)matrix[12];
 	}
 
@@ -340,7 +341,8 @@ void RB_GetShaderTextureMatrix( const float *shaderRegisters,
 	matrix[5] = shaderRegisters[ texture->matrix[1][1] ];
 	matrix[9] = 0;
 	matrix[13] = shaderRegisters[ texture->matrix[1][2] ];
-	if ( matrix[13] < -40 || matrix[13] > 40 ) {
+	//if ( matrix[13] < -40 || matrix[13] > 40 ) {
+	if ( fabs( matrix[13] ) > 40 ) { // Cowcat
 		matrix[13] -= (int)matrix[13];
 	}
 
@@ -628,10 +630,12 @@ void R_SetDrawInteraction( const shaderStage_t *surfaceStage, const float *surfa
 
 		// we attempt to keep scrolls from generating incredibly large texture values, but
 		// center rotations and center scales can still generate offsets that need to be > 1
-		if ( matrix[0][3] < -40 || matrix[0][3] > 40 ) {
+		//if ( matrix[0][3] < -40 || matrix[0][3] > 40 ) {
+		if ( fabs( matrix[0][3] ) > 40 ) { // Cowcat
 			matrix[0][3] -= (int)matrix[0][3];
 		}
-		if ( matrix[1][3] < -40 || matrix[1][3] > 40 ) {
+		//if ( matrix[1][3] < -40 || matrix[1][3] > 40 ) {
+		if ( fabs( matrix[1][3] ) > 40 ) { // Cowcat
 			matrix[1][3] -= (int)matrix[1][3];
 		}
 	} else {
