@@ -405,6 +405,7 @@ void RB_BindVariableStageImage( const textureStage_t *texture, const float *shad
 	}
 }
 
+#if 0 // unused - Cowcat
 /*
 ======================
 RB_BindStageTexture
@@ -478,7 +479,7 @@ void RB_FinishStageTexture( const textureStage_t *texture, const drawSurf_t *sur
 		qglMatrixMode( GL_MODELVIEW );
 	}
 }
-
+#endif
 
 
 //=============================================================================================

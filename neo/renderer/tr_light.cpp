@@ -302,6 +302,7 @@ R_SpecularTexGen
 Calculates the specular coordinates for cards without vertex programs.
 =================
 */
+#if 0
 static void R_SpecularTexGen( drawSurf_t *surf, const idVec3 &globalLightOrigin, const idVec3 &viewOrg ) {
 	const srfTriangles_t *tri;
 	idVec3	localLightOrigin;
@@ -364,7 +365,7 @@ static void R_SpecularTexGen( drawSurf_t *surf, const idVec3 &globalLightOrigin,
 
 	surf->dynamicTexCoords = vertexCache.AllocFrameTemp( texCoords, size );
 }
-
+#endif
 
 //=======================================================================================================
 
@@ -696,15 +697,17 @@ void R_LinkLightSurf( const drawSurf_t **link, const srfTriangles_t *tri, const 
 			shader->EvaluateRegisters( regs, space->entityDef->parms.shaderParms, tr.viewDef, space->entityDef->parms.referenceSound );
 		}
 
+        #if 0 // Specular was never used anyway in old ARB code.
 		// calculate the specular coordinates if we aren't using vertex programs
 		//if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() ) {
-        if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() && tr.backEndRenderer != BE_ARB) { // dCowcat
+        if ( !tr.backEndRendererHasVertexPrograms && !r_skipSpecular.GetBool() && tr.backEndRenderer != BE_ARB) { // Cowcat
 			R_SpecularTexGen( drawSurf, light->globalLightOrigin, tr.viewDef->renderView.vieworg );
 			// if we failed to allocate space for the specular calculations, drop the surface
 			if ( !drawSurf->dynamicTexCoords ) {
 				return;
 			}
 		}
+		#endif
 	}
 
 	// actually link it in
