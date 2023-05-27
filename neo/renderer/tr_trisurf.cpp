@@ -348,8 +348,12 @@ void R_FreeStaticTriSurfVertexCaches( srfTriangles_t *tri ) {
 	} else {
 		// this is a light interaction surface that references
 		// a different ambient model surface
-		vertexCache.Free( tri->lightingCache );
-		tri->lightingCache = NULL;
+		if ( tri->lightingCache ) // Cowcat
+		{
+		    //common->Printf( "FreeLightingCache\n");
+		    vertexCache.Free( tri->lightingCache );
+		    tri->lightingCache = NULL;
+		}
 	}
 	if ( tri->indexCache ) {
 		vertexCache.Free( tri->indexCache );

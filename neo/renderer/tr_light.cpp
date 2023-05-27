@@ -78,16 +78,18 @@ Returns false if the cache couldn't be allocated, in which case the surface shou
 bool R_CreateLightingCache( const idRenderEntityLocal *ent, const idRenderLightLocal *light, srfTriangles_t *tri ) {
 	idVec3		localLightOrigin;
 
+    // not needed if we have vertex programs
+	if ( tr.backEndRendererHasVertexPrograms /*|| !r_useTripleTextureARB.GetBool()*/ ) {
+		return true;
+	}
+	
 	// fogs and blends don't need light vectors
 	if ( light->lightShader->IsFogLight() || light->lightShader->IsBlendLight() ) {
 		return true;
 	}
 
-	// not needed if we have vertex programs
-	if ( tr.backEndRendererHasVertexPrograms ) {
-		return true;
-	}
-
+    //common->Printf( "CreateLightingCache\n");
+    
 	R_GlobalPointToLocal( ent->modelMatrix, light->globalLightOrigin, localLightOrigin );
 
 	int	size = tri->ambientSurface->numVerts * sizeof( lightingCache_t );
@@ -302,7 +304,7 @@ R_SpecularTexGen
 Calculates the specular coordinates for cards without vertex programs.
 =================
 */
-#if 0
+#if 0 // unused Cowcat
 static void R_SpecularTexGen( drawSurf_t *surf, const idVec3 &globalLightOrigin, const idVec3 &viewOrg ) {
 	const srfTriangles_t *tri;
 	idVec3	localLightOrigin;
