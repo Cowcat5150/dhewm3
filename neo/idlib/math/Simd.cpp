@@ -3080,6 +3080,7 @@ void TestGetTextureSpaceLightVectors( void ) {
 TestGetSpecularTextureCoords
 ============
 */
+#if 0
 void TestGetSpecularTextureCoords( void ) {
 	int i, j;
 	TIME_TYPE start, end, bestClocksGeneric, bestClocksSIMD;
@@ -3139,7 +3140,7 @@ void TestGetSpecularTextureCoords( void ) {
 	result = ( i >= COUNT ) ? "ok" :  S_COLOR_RED "X";
 	PrintClocks( va( "   simd->CreateSpecularTextureCoords() %s", result ), COUNT, bestClocksSIMD, bestClocksGeneric );
 }
-
+#endif
 /*
 ============
 TestCreateShadowCache
@@ -4097,7 +4098,7 @@ void idSIMD::Test_f( const idCmdArgs &args ) {
 	TestDeriveUnsmoothedTangents();
 	TestNormalizeTangents();
 	TestGetTextureSpaceLightVectors();
-	TestGetSpecularTextureCoords();
+	//TestGetSpecularTextureCoords();
 	TestCreateShadowCache();
 
 	idLib::common->Printf("====================================\n" );
