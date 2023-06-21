@@ -1144,8 +1144,8 @@ void idSessionLocal::DispatchCommand( idUserInterface *gui, const char *menuComm
 		HandleIntroMenuCommands( menuCommand );
 	} else if ( gui == guiMsg ) {
 		HandleMsgCommands( menuCommand );
-	} else if ( gui == guiTakeNotes ) {
-		HandleNoteCommands( menuCommand );
+	//} else if ( gui == guiTakeNotes ) {
+	//	HandleNoteCommands( menuCommand );
 	} else if ( gui == guiRestartMenu ) {
 		HandleRestartMenuCommands( menuCommand );
 	} else if ( game && guiActive && guiActive->State().GetBool( "gameDraw" ) ) {
@@ -1539,6 +1539,7 @@ void idSessionLocal::HandleMsgCommands( const char *menuCommand ) {
 idSessionLocal::HandleNoteCommands
 =================
 */
+#if 0
 #define NOTEDATFILE "C:/notenumber.dat"
 
 void idSessionLocal::HandleNoteCommands( const char *menuCommand ) {
@@ -1651,7 +1652,7 @@ void idSessionLocal::HandleNoteCommands( const char *menuCommand ) {
 		cvarSystem->SetCVarBool( "con_noPrint", bCon );
 	}
 }
-
+#endif
 /*
 ===============
 idSessionLocal::SetCDKeyGuiVars
