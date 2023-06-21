@@ -3229,7 +3229,7 @@ void idCommonLocal::InitGame( void ) {
 	if ( sysDetect ) {
 		SetMachineSpec();
 		Com_ExecMachineSpec_f( args );
-		cvarSystem->SetCVarInteger( "s_numberOfSpeakers", 6 );
+		cvarSystem->SetCVarInteger( "s_numberOfSpeakers", 2 );
 		cmdSystem->BufferCommandText( CMD_EXEC_NOW, "s_restart\n" );
 		cmdSystem->ExecuteCommandBuffer();
 	}
